@@ -1,0 +1,14 @@
+{
+  "name": "robooster-marketplace",
+  "owner": {
+    "name": "robooster"
+  },
+  "plugins": [
+    {
+      "name": "robooster-claude",
+      "source": "../",
+      "description": "Shared Claude Code skills and agents for Robooster team",
+      "version": "1.0.0"
+    }
+  ]
+}
