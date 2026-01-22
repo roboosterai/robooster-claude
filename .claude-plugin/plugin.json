@@ -1,10 +1,9 @@
 {
   "name": "robooster-claude",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Shared Claude Code configuration for Robooster team",
   "author": {
     "name": "robooster"
   },
-  "hooks": "./hooks/hooks.json",
   "repository": "https://github.com/roboosterai/robooster-claude"
 }
