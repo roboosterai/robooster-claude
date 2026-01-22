@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sync-kb.sh",
+            "command": "echo \"PLUGIN_ROOT=${CLAUDE_PLUGIN_ROOT}\" >> /tmp/hook-debug.log && echo \"Script exists: $(test -f ${CLAUDE_PLUGIN_ROOT}/scripts/sync-kb.sh && echo YES || echo NO)\" >> /tmp/hook-debug.log",
             "timeout": 30
           }
         ]
