@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "robooster-claude",
-      "source": "..",
+      "source": ".",
       "description": "Shared Claude Code skills and agents for Robooster team",
       "version": "1.0.0"
     }
