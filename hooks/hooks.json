@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'HOOK TEST' >> /tmp/hook-debug.log",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sync-kb.sh",
             "timeout": 30
           }
         ]
