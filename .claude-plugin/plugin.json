@@ -5,6 +5,6 @@
   "author": {
     "name": "robooster"
   },
-  "hooks": "../hooks/hooks.json",
+  "hooks": "./hooks/hooks.json",
   "repository": "https://github.com/roboosterai/robooster-claude"
 }
