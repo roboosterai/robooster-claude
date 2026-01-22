@@ -2,6 +2,8 @@
   "name": "robooster-claude",
   "version": "1.0.0",
   "description": "Shared Claude Code configuration for Robooster team",
-  "author": "Robooster AI",
+  "author": {
+    "name": "robooster"
+  },
   "repository": "https://github.com/roboosterai/robooster-claude"
 }
