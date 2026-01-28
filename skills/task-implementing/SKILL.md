@@ -1,0 +1,602 @@
+---
+name: task-implementing
+description: Implement one spec task per session. Reads a Feature Spec, picks a task, implements it with tests and review, and produces a handoff document for the next session.
+user-invocable: true
+---
+
+# Task Implementing
+
+Implement one task from a Feature Spec per session. Each session picks one task, implements it, tests it, reviews it, and writes a handoff for the next session.
+
+## Core Principles
+
+- **One task per session** — Focus delivers quality
+- **Spec is source of truth** — Feature Spec defines what to build
+- **Handoff continuity** — Each session leaves context for the next
+- **Human gates at key points** — 3 approval checkpoints
+- **Ask, don't assume** — Use AskUserQuestion for all interaction
+- **One question per message** — Keep interactions focused
+
+---
+
+## Workflow
+
+Execute phases in order. Use `AskUserQuestion` for all user interaction.
+
+---
+
+### Phase 1: Initialize
+
+**Goal:** Establish session date and project context
+
+**Actions:**
+
+1. **Get current date:**
+
+   ```bash
+   date +%Y-%m-%d
+   ```
+
+2. **Determine project context using AskUserQuestion:**
+
+   **Question:** "Which project is this work for?"
+
+   **Options:**
+
+   | Option           | Description                                              |
+   |------------------|----------------------------------------------------------|
+   | **Platro**       | Platro payment platform — saves to `platro/platro-kb/`   |
+   | **General/Root** | Cross-project or general work — saves to root `kb/`      |
+
+3. **Set session variables based on selection:**
+
+   | Project      | `{KB_ROOT}`         | `{GITHUB_REPO}`                            |
+   |--------------|---------------------|--------------------------------------------|
+   | Platro       | `platro/platro-kb`  | `https://github.com/roboosterai/platro-kb` |
+   | General/Root | `kb`                | `~`                                        |
+
+4. **Parse arguments:**
+   - `--spec={path}` — Feature Spec file path
+   - `--task={N}` — Task number to implement
+   - `--review={path}` — Review findings file to fix (optional, for fix iterations)
+   - If not provided, will prompt in Phase 2
+
+5. **Confirm to user:**
+
+   > Starting task implementation session
+   > - Date: {DATE}
+   > - Project: {PROJECT}
+   > - KB: {KB_ROOT}/
+
+**Proceed when:** Date and project context established
+
+→ Proceed to Phase 2
+
+---
+
+### Phase 2: Understand
+
+**Goal:** Read the Feature Spec, extract the target task, and build full context
+
+**Actions:**
+
+1. **Locate Feature Spec:**
+   - If `--spec` arg provided — use it
+   - Otherwise — list files from `{KB_ROOT}/specs/` and ask user to select
+
+2. **Read the Feature Spec end-to-end.** Extract:
+   - **All tasks** — names, goals, acceptance criteria, key files, dependencies
+   - **Boundaries** — in scope, out of scope, protected elements, constraints
+   - **Codebase Context** — project structure, conventions, build/test commands
+   - **Testing Strategy** — per-task testing, test patterns
+   - **Approach** — architecture, design decisions, components
+
+3. **Select target task:**
+   - If `--task` arg provided — use it
+   - Otherwise — present task list and ask user to select:
+
+   **Question:** "Which task do you want to implement?"
+
+   **Options:** (from spec's task list, showing name + goal)
+
+4. **If target task > 1, read previous handoff:**
+   - Read the previous task's section in the spec file. If it contains a `**Handoff:**` link, read that file.
+   - Extract: what was built, decisions made, deviations, notes for this task
+
+5. **If `--review` arg provided, read review findings file:**
+   - Extract findings with priorities
+   - These become additional acceptance criteria for this session
+
+6. **Read project CLAUDE.md** for the services involved
+
+7. **Explore codebase if needed:**
+
+   If key files from the task don't exist yet or codebase context is thin:
+
+   ```
+   Task(
+     subagent_type: "code-explorer",
+     prompt: "Explore the codebase focusing on: [areas from task key files and spec codebase context].
+              Find: existing patterns, similar features, extension points, relevant file structure.
+              Return detailed findings.",
+     description: "Explore codebase for task"
+   )
+   ```
+
+8. **Ask clarifying questions** via AskUserQuestion if gaps exist between the spec and what you need to implement
+
+9. **Present task summary:**
+
+   > ## Task {N}: {Name}
+   >
+   > **Goal:** {goal}
+   >
+   > **Acceptance Criteria:**
+   > - {criterion 1}
+   > - {criterion 2}
+   >
+   > **Key Files:** {files}
+   > **Dependencies:** {dependencies}
+   > **Previous Handoff:** {summary or "First task"}
+   > **Review Fixes:** {findings to address or "None"}
+   >
+   > **Boundaries:**
+   > - In scope: {relevant boundaries}
+   > - Out of scope: {relevant boundaries}
+   > - Protected: {protected elements}
+
+10. **Gate G1:**
+
+    **Question:** "Understanding confirmed? Ready to plan?"
+
+    | Option | Description |
+    |--------|-------------|
+    | **Ready to plan** | Understanding is correct, proceed to planning |
+    | **Clarify gaps** | Something is missing or wrong, need to discuss |
+
+**Proceed when:** User confirms understanding
+
+→ Proceed to Phase 3
+
+---
+
+### Phase 3: Plan
+
+**Goal:** Create a file-by-file implementation plan using Plan Mode
+
+**Actions:**
+
+1. **Enter Plan Mode programmatically:**
+
+   Call `EnterPlanMode` to switch into planning mode. Do NOT ask the user to press Shift+Tab.
+
+2. **In Plan Mode:**
+   - Read key files listed in the target task and referenced in the spec's Codebase Context
+   - Generate implementation plan:
+     - File-by-file changes with order of operations
+     - Map each change to acceptance criteria
+     - Note build/test commands from spec's Codebase Context
+     - If fixing review findings, map each finding to specific file changes
+
+3. **Gate G2:** Call `ExitPlanMode` to present the plan for user approval
+
+**Proceed when:** User approves plan
+
+→ Proceed to Phase 4
+
+---
+
+### Phase 4: Implement
+
+**Goal:** Build the task following the approved plan
+
+**Actions:**
+
+1. **Implement following the plan:**
+   - Work through files in the planned order
+   - Track acceptance criteria completion mentally — do NOT use TaskCreate for acceptance criteria (they get prematurely marked complete)
+
+2. **Run build command** from spec's Codebase Context:
+   ```bash
+   {build command from spec}
+   ```
+   Fix any build errors before proceeding.
+
+3. **Run test command** from spec's Codebase Context:
+   ```bash
+   {test command from spec}
+   ```
+   Fix any test failures before proceeding.
+
+**Proceed when:** Implementation complete, build passes, existing tests pass
+
+→ Proceed to Phase 5
+
+---
+
+### Phase 5: Test, Verify & Review
+
+**Goal:** Write tests, verify their quality, review code — iterating the full cycle until clean
+
+**This phase runs as an iteration loop (max 3 rounds).**
+
+```
+┌─→ test-writer → test-verifier → AC verify → 3× code-reviewer ─┐
+│                                                      │
+│   findings need fixes?                               │
+│     yes → fix inline → increment counter ───────────→┘
+│     no  → Gate G3: "Quality acceptable?"             │
+│                                                      │
+│   counter >= 3 → present remaining → Gate G3         │
+└──────────────────────────────────────────────────────┘
+```
+
+**Actions per iteration:**
+
+#### Step 1: Test Writing (test-writer agent)
+
+Launch test-writer agent:
+
+```
+Task(
+  subagent_type: "test-writer",
+  prompt: "Write comprehensive tests for the implementation.
+
+           Feature Context:
+           {task name and goal from spec}
+
+           Acceptance Criteria:
+           {acceptance criteria from spec}
+
+           Implemented Files:
+           {list of files created/modified in Phase 4}
+
+           Testing Strategy (from Feature Spec):
+           {testing strategy section relevant to this task}
+
+           Test Patterns (from Feature Spec):
+           {test patterns from spec's Codebase Context}
+
+           Write unit tests covering all written/edited code.",
+  description: "Write tests for task implementation"
+)
+```
+
+On iteration 2+: update prompt to include "Update existing tests and add tests for changes made in the previous review cycle."
+
+#### Step 2: Test Verification (test-verifier agent)
+
+Launch test-verifier agent:
+
+```
+Task(
+  subagent_type: "test-verifier",
+  prompt: "Verify test quality for the implementation.
+
+           Test Files:
+           {list of test files}
+
+           Implementation Files:
+           {list of implementation files}
+
+           Targets:
+           - Mutation score: >80%
+           - Branch coverage: >70%
+           - Red flag detection
+
+           Run mutation testing and coverage analysis.",
+  description: "Verify test quality"
+)
+```
+
+#### Step 3: Acceptance Criteria Verification
+
+Verify every acceptance criterion from the spec task is satisfied.
+
+1. **Re-read the target task's acceptance criteria** from the spec file
+2. **For each criterion, verify:**
+   - **Code-verifiable** (file exists, class created, method has correct signature) → read the relevant files and confirm
+   - **Test-verifiable** (tests pass, build passes) → confirmed in Phase 4, mark as met
+   - **Test-coverage-verifiable** (unit tests for X scenarios) → check test files from Step 1 cover it
+   - **Behavior-verifiable** (logic correctness, fee clearing works) → read implementation and confirm it matches criterion intent
+3. **Produce verdict:**
+
+   > ## Acceptance Criteria Verification
+   >
+   > - [x] {criterion 1} — **Met.** {1-line evidence}
+   > - [x] {criterion 2} — **Met.** {1-line evidence}
+   > - [ ] {criterion 3} — **Not met.** {what's missing}
+   > - [~] {criterion 4} — **Partial.** {what's done, what's missing}
+
+4. **If any Not Met or Partial:**
+   - Fix implementation inline (targeted changes, not full re-plan)
+   - Re-run build and test commands
+   - Re-verify the affected criteria
+   - If a criterion cannot be met, document as deviation for the handoff
+
+#### Step 4: Code Review (3 parallel code-reviewer agents)
+
+Launch 3 code-reviewer agents in parallel:
+
+```
+Task(
+  subagent_type: "code-reviewer",
+  prompt: "Review these files for simplicity, DRY, and elegance.
+           Focus on: unnecessary complexity, code duplication,
+           readability issues, overly clever code.
+
+           Files:
+           {list of all created/modified files}",
+  description: "Review for simplicity"
+)
+```
+
+```
+Task(
+  subagent_type: "code-reviewer",
+  prompt: "Review these files for bugs and functional correctness.
+           Focus on: logic errors, edge cases, null handling,
+           error paths, race conditions.
+
+           Files:
+           {list of all created/modified files}",
+  description: "Review for bugs"
+)
+```
+
+```
+Task(
+  subagent_type: "code-reviewer",
+  prompt: "Review these files for project conventions and abstractions.
+           Focus on: naming conventions, architecture patterns,
+           proper use of existing abstractions, consistency.
+
+           Files:
+           {list of all created/modified files}",
+  description: "Review for conventions"
+)
+```
+
+#### Step 5: Evaluate & Iterate
+
+1. Consolidate all findings from test-verifier and code-reviewers
+2. **If findings need fixes AND iteration < 3:**
+   - Fix issues inline (no re-planning needed — review fixes are typically small)
+   - Run build and test commands to verify fixes don't break anything
+   - Increment iteration counter
+   - Loop back to Step 1 (re-run full cycle: tests may need updating after fixes)
+3. **If no findings OR iteration >= 3:**
+   - Present results summary to user
+
+#### Step 6: XML Documentation (conditional — C# projects only)
+
+**Only execute if `platro-services` is involved** (detected from spec's Codebase Context or key files).
+
+1. Run documentation linter:
+   ```bash
+   cd platro/platro-services && make docs-lint-log 2>&1
+   ```
+
+2. Parse lint output — extract file paths with errors, filtering to files in scope
+
+3. Spawn parallel xml-comments-writer agents in batches of 10-15 files:
+
+   ```
+   Task(
+     subagent_type: "xml-comments-writer",
+     prompt: "Add XML documentation to these C# files in platro-services:
+
+              Files:
+              - {file1.cs}
+              - {file2.cs}
+              - ...
+
+              Instructions:
+              1. Read each file
+              2. Add XML docs to all undocumented public/protected members
+              3. Use explicit tags only — NO <inheritdoc/>
+              4. Follow patterns from kb/guides/xml-documentation.md
+              5. Verify with: cd platro/platro-services && make docs-lint
+
+              Report files documented and final lint status.",
+     description: "Document batch: {directory/batch-name}"
+   )
+   ```
+
+   **Launch ALL batch agents in parallel.**
+
+4. Re-run lint to verify:
+   ```bash
+   cd platro/platro-services && make docs-lint 2>&1 | head -50
+   ```
+
+5. Iteration loop (max 3 rounds):
+   - If errors remain AND iteration < 3 → re-batch affected files, spawn new agents
+   - If errors remain AND iteration >= 3 → present to user and proceed
+
+#### Gate G3
+
+**Question:** "Quality acceptable? Ready to finalize?"
+
+| Option | Description |
+|--------|-------------|
+| **Quality acceptable** | Proceed to handoff |
+| **Fix remaining issues** | Address specific findings before proceeding |
+
+Present summary with results:
+
+> ## Quality Summary (Iteration {N}/3)
+>
+> **Tests:**
+> - Mutation score: {score}%
+> - Branch coverage: {coverage}%
+> - Red flags: {count or "None"}
+>
+> **Code Review:**
+> - Findings addressed: {count}
+> - Findings remaining: {count} (list if any)
+>
+> **Acceptance Criteria:** {N}/{total} met, {M} partial, {K} not met
+> - {list any unmet/partial with reason}
+>
+> **XML Documentation:** {Clean / N errors remaining / N/A}
+
+**Proceed when:** User approves quality
+
+→ Proceed to Phase 6
+
+---
+
+### Phase 6: Handoff & Save
+
+**Goal:** Write handoff document and present summary
+
+**Actions:**
+
+1. **Generate handoff filename:**
+   - Pattern: `YYYYMMDD-handoff-{title-slug}.md`
+   - Title slug: lowercase, hyphenated, derived from feature + task name
+
+2. **Compose handoff document:**
+
+   ```yaml
+   ---
+   title: "Handoff: Task {N} — {Task Name}"
+   description: "{1-2 sentence summary (max 300 chars)}"
+   type: handoff
+   status: draft
+   version: "1.0.0"
+   created: {YYYY-MM-DD}
+   updated: {YYYY-MM-DD}
+   author: skill::task-implementing
+   modified_by: skill::task-implementing
+   linear: ~
+   ---
+   ```
+
+   ```markdown
+   # Handoff: Task {N} — {Task Name}
+
+   ## Feature Spec
+   [{spec filename}]({spec path})
+
+   ## Completed
+   - {What was built}
+
+   ## Acceptance Criteria Status
+   - [x] {criterion 1}
+   - [x] {criterion 2}
+   - [ ] {criterion not met, if any — with explanation}
+
+   ## Files Changed
+   - {file}: {what changed}
+
+   ## Decisions Made During Implementation
+   - {Decision}: {rationale}
+
+   ## Deviations from Spec
+   - {Deviation}: {why} (or "None")
+
+   ## Quality Results
+   - Mutation score: {score}%
+   - Branch coverage: {coverage}%
+   - Review iterations: {count}
+   - Remaining findings: {list or "None"}
+
+   Note: The `Acceptance Criteria Status` section must reflect the Step 3 verdict from Phase 5. Do not mark criteria as met unless verified.
+
+   ## For Next Task
+   - {What the next session needs to know}
+   - {Gotchas discovered}
+   ```
+
+3. **Save to `{KB_ROOT}/handoffs/`:**
+   ```bash
+   mkdir -p {KB_ROOT}/handoffs
+   ```
+   Write the file.
+
+4. **Update spec file:**
+   - Find the completed task's section in the spec file
+   - **Check AC boxes:** For each acceptance criterion, change `- [ ]` to `- [x]` if met (based on Step 3 verdict). Leave `- [ ]` for unmet criteria.
+   - After the task's `**Dependencies:**` field, append:
+     ```markdown
+     - **Status:** Done
+     - **Handoff:** [{handoff filename}]({handoff path})
+     ```
+
+5. **Present summary:**
+
+   > ## Task Implementation Complete
+   >
+   > **Task:** {N} — {Task Name}
+   > **Spec:** [{spec filename}]({spec path})
+   > **Handoff:** [{handoff filename}]({handoff path})
+   > **Project:** {PROJECT}
+   >
+   > ### What Was Built
+   > - {summary}
+   >
+   > ### Files Changed
+   > - {file}: {changes}
+   >
+   > ### Quality Results
+   > - Mutation score: {score}%
+   > - Branch coverage: {coverage}%
+   > - Review iterations: {count}
+   >
+   > ### Suggested Commit Message
+   > ```
+   > {suggested commit message}
+   > ```
+   >
+   > ### Next Task
+   > To continue: `/task-implementing --spec={spec path} --task={N+1}`
+
+**Session complete.**
+
+---
+
+## Human Gates
+
+| Gate | Phase | Question | Pass | Fail |
+|------|-------|----------|------|------|
+| G1 | Phase 2 | "Understanding confirmed?" | Continue | Clarify gaps |
+| G2 | Phase 3 | "Plan approved?" | Continue | Iterate plan |
+| G3 | Phase 5 | "Quality acceptable?" | Continue | Fix remaining |
+
+---
+
+## Rules
+
+1. **One task per session** — Do not attempt multiple spec tasks
+2. **Spec is source of truth** — Follow the Feature Spec; do not redesign
+3. **Read handoff for continuity** — If task > 1, always read previous handoff
+4. **Human gates are mandatory** — Do not skip approval checkpoints
+5. **One question per message** — Keep interactions focused
+6. **Max 3 quality iterations** — Full cycle (test → verify → review) repeats max 3 times
+7. **V2 frontmatter** — Use `author: skill::task-implementing`
+8. **Document deviations** — Any deviations from spec must appear in handoff
+9. **XML docs only for C#** — Conditional on platro-services involvement
+10. **Always write handoff** — Every session ends with a handoff document
+11. **No TaskCreate for acceptance criteria** — Track criteria in the handoff, not via task tools
+12. **Programmatic plan mode** — Call `EnterPlanMode` directly; never ask user to press Shift+Tab
+
+---
+
+## Example Invocations
+
+```
+/task-implementing
+```
+(Will prompt for spec and task)
+
+```
+/task-implementing --spec=platro/platro-kb/specs/20260127-spec-reconciliation-engine.md --task=1
+```
+(Will load spec and start task 1)
+
+```
+/task-implementing --spec=kb/specs/20260127-spec-webhook-system.md --task=3
+```
+(Will load spec, read task 2 handoff, and start task 3)
