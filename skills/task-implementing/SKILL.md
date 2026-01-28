@@ -56,9 +56,9 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    | General/Root | `kb`                | `~`                                        |
 
 4. **Parse arguments:**
-   - `--spec={path}` — Feature Spec file path
+   - `--spec= @{path}` or `--spec={path}` — Feature Spec file path. Note the space before `@` — required for autocomplete to work. Strip leading `@` and `./` from path when parsing.
    - `--task={N}` — Task number to implement
-   - `--review={path}` — Review findings file to fix (optional, for fix iterations)
+   - `--review= @{path}` or `--review={path}` — Review findings file (optional). Same parsing rules.
    - If not provided, will prompt in Phase 2
 
 5. **Confirm to user:**
@@ -454,8 +454,9 @@ Present summary with results:
 **Actions:**
 
 1. **Generate handoff filename:**
-   - Pattern: `YYYYMMDD-handoff-{title-slug}.md`
-   - Title slug: lowercase, hyphenated, derived from feature + task name
+   - Pattern: `YYYYMMDD-handoff-{title-slug}-task-{N}.md`
+   - Title slug: lowercase, hyphenated, derived from feature name
+   - `{N}` is the task number from the spec
 
 2. **Compose handoff document:**
 
@@ -516,14 +517,22 @@ Present summary with results:
    ```
    Write the file.
 
-4. **Update spec file:**
-   - Find the completed task's section in the spec file
-   - **Check AC boxes:** For each acceptance criterion, change `- [ ]` to `- [x]` if met (based on Step 3 verdict). Leave `- [ ]` for unmet criteria.
-   - After the task's `**Dependencies:**` field, append:
-     ```markdown
-     - **Status:** Done
-     - **Handoff:** [{handoff filename}]({handoff path})
-     ```
+4. **Update spec file (TWO edits required):**
+
+   **Edit A — Check AC boxes:** Find the acceptance criteria list in the task section and edit each line:
+   ```diff
+   - - [ ] Criterion text here
+   + - [x] Criterion text here
+   ```
+   Only check boxes (`[x]`) for criteria verified as **Met** in Phase 5 Step 3. Leave `[ ]` for unmet/partial criteria.
+
+   **Edit B — Add status fields:** After the task's `**Dependencies:**` line, append:
+   ```markdown
+   - **Status:** Done
+   - **Handoff:** [{handoff filename}]({handoff path})
+   ```
+
+   **Both edits are mandatory.** Do not skip Edit A.
 
 5. **Present summary:**
 
@@ -592,11 +601,11 @@ Present summary with results:
 (Will prompt for spec and task)
 
 ```
-/task-implementing --spec=platro/platro-kb/specs/20260127-spec-reconciliation-engine.md --task=1
+/task-implementing --spec= @./platro/platro-kb/specs/20260127-spec-reconciliation-engine.md --task=1
 ```
-(Will load spec and start task 1)
+(Use `@` with space before it for file autocomplete)
 
 ```
 /task-implementing --spec=kb/specs/20260127-spec-webhook-system.md --task=3
 ```
-(Will load spec, read task 2 handoff, and start task 3)
+(Path without `@` also works)
