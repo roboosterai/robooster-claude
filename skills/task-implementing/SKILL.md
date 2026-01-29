@@ -180,7 +180,32 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 3. **Gate G2:** Call `ExitPlanMode` to present the plan for user approval
 
-**Proceed when:** User approves plan
+4. **After plan approval, create Tasks from the plan:**
+
+   For each logical step in the implementation plan, create a Task:
+
+   ```
+   TaskCreate({
+     subject: "{Imperative action, e.g., 'Add FeeEntry model to domain layer'}",
+     description: "{Detailed description including:
+       - Files to create/modify
+       - What changes to make
+       - Dependencies on other steps
+       - Relevant context from spec}",
+     activeForm: "{Present continuous, e.g., 'Adding FeeEntry model...'}"
+   })
+   ```
+
+   **Guidelines for task decomposition:**
+   - Group related file changes into one task (e.g., model + its tests = 1 task)
+   - Each task should be completable in 5-15 minutes
+   - Use `addBlockedBy` for sequential dependencies
+   - Include file paths and brief change descriptions in the subject
+   - Include the acceptance criteria this step satisfies in the description
+
+   **Example**: If the plan has 5 file-level changes, create 3-5 Tasks grouping related changes.
+
+**Proceed when:** User approves plan and Tasks are created
 
 → Proceed to Phase 4
 
@@ -192,9 +217,14 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Actions:**
 
-1. **Implement following the plan:**
-   - Work through files in the planned order
-   - Track acceptance criteria completion mentally — do NOT use TaskCreate for acceptance criteria (they get prematurely marked complete)
+1. **Work through Tasks in order:**
+   - Call `TaskList` to see all pending tasks
+   - For each task:
+     - Call `TaskUpdate` to set status to `in_progress`
+     - Read the task description for implementation details
+     - Implement the changes described
+     - Call `TaskUpdate` to set status to `completed`
+   - This ensures progress survives context compacting
 
 2. **Run build command** from spec's Codebase Context:
    ```bash
@@ -588,8 +618,9 @@ Present summary with results:
 8. **Document deviations** — Any deviations from spec must appear in handoff
 9. **XML docs only for C#** — Conditional on platro-services involvement
 10. **Always write handoff** — Every session ends with a handoff document
-11. **No TaskCreate for acceptance criteria** — Track criteria in the handoff, not via task tools
+11. **Tasks for implementation steps, not acceptance criteria** — Create Tasks from the implementation plan (file-by-file changes). Do NOT create Tasks from acceptance criteria (they get prematurely marked complete and don't map 1:1 to implementation steps). Track acceptance criteria in the handoff document.
 12. **Programmatic plan mode** — Call `EnterPlanMode` directly; never ask user to press Shift+Tab
+13. **Create Tasks after plan approval** — Phase 3 must create Tasks from the approved implementation plan before proceeding to Phase 4. This ensures implementation steps survive context compacting.
 
 ---
 
