@@ -3,16 +3,22 @@
 # Atomically updates robooster-claude plugin version, commits, rebases, pushes,
 # and updates local marketplace/plugin
 #
-# Usage: update-plugin.sh <new_version> <commit_message> [repo_path] [original_cwd]
+# Usage:
+#   Release mode: update-plugin.sh <new_version> <commit_message> [repo_path] [original_cwd]
+#   Sync mode:    update-plugin.sh --sync [repo_path] [original_cwd]
+#
+# Modes:
+#   Release - Version bump, commit, push, and update local plugin
+#   Sync    - Pull remote changes and update local plugin (no commit)
 #
 # Arguments:
-#   new_version    - Version string (e.g., "1.2.5")
-#   commit_message - Full commit message
+#   new_version    - Version string (e.g., "1.2.5") [release mode only]
+#   commit_message - Full commit message [release mode only]
 #   repo_path      - Optional path to repo (defaults to current directory)
 #   original_cwd   - Optional directory to return to for plugin operations
 #
 # Output: JSON to stdout
-#   Success: {"status":"success","version":"1.2.5","marketplace_updated":true,"plugin_updated":true,"plugin_scope":"project"}
+#   Success: {"status":"success","version":"1.2.5","mode":"release|sync","marketplace_updated":true,"plugin_updated":true,"plugin_scope":"project"}
 #   Success with warnings: {"status":"success","version":"1.2.5",...,"warnings":["message"]}
 #   Error:   {"status":"error","step":"<step_name>","message":"<error_message>"}
 
@@ -33,6 +39,7 @@ escape_json() {
 json_success() {
     local version="$1"
     local output="{\"status\":\"success\",\"version\":\"$version\""
+    output+=",\"mode\":\"$([ \"$SYNC_MODE\" = true ] && echo 'sync' || echo 'release')\""
     output+=",\"marketplace_updated\":$MARKETPLACE_UPDATED"
     output+=",\"plugin_updated\":$PLUGIN_UPDATED"
     if [ -n "$PLUGIN_SCOPE" ]; then
@@ -64,24 +71,35 @@ json_error() {
     exit 1
 }
 
-# Arguments
-NEW_VERSION="$1"
-COMMIT_MESSAGE="$2"
-REPO_PATH="${3:-.}"
-ORIGINAL_CWD="${4:-}"
+# Detect mode from first argument
+if [ "$1" = "--sync" ]; then
+    SYNC_MODE=true
+    REPO_PATH="${2:-.}"
+    ORIGINAL_CWD="${3:-}"
+    NEW_VERSION=""
+    COMMIT_MESSAGE=""
+else
+    SYNC_MODE=false
+    NEW_VERSION="$1"
+    COMMIT_MESSAGE="$2"
+    REPO_PATH="${3:-.}"
+    ORIGINAL_CWD="${4:-}"
+fi
 
 # Step 1: Validate arguments
-if [ -z "$NEW_VERSION" ]; then
-    json_error "validate" "Missing required argument: new_version"
-fi
+if [ "$SYNC_MODE" = false ]; then
+    if [ -z "$NEW_VERSION" ]; then
+        json_error "validate" "Missing required argument: new_version"
+    fi
 
-if [ -z "$COMMIT_MESSAGE" ]; then
-    json_error "validate" "Missing required argument: commit_message"
-fi
+    if [ -z "$COMMIT_MESSAGE" ]; then
+        json_error "validate" "Missing required argument: commit_message"
+    fi
 
-# Validate version format (semver-like: X.Y.Z)
-if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-    json_error "validate" "Invalid version format: $NEW_VERSION (expected X.Y.Z)"
+    # Validate version format (semver-like: X.Y.Z)
+    if ! echo "$NEW_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+        json_error "validate" "Invalid version format: $NEW_VERSION (expected X.Y.Z)"
+    fi
 fi
 
 # Step 2: Navigate to repo
@@ -106,58 +124,76 @@ if [ ! -f "$MARKETPLACE_JSON" ]; then
     json_error "validate" "File not found: $MARKETPLACE_JSON"
 fi
 
-# Step 3: Update version in plugin.json
-if ! sed -i '' "s/\"version\": *\"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" "$PLUGIN_JSON" 2>/dev/null; then
-    json_error "update_plugin_json" "Failed to update version in $PLUGIN_JSON"
-fi
+if [ "$SYNC_MODE" = false ]; then
+    # --- Release mode: update version, commit, rebase, push ---
 
-# Verify the update was applied
-if ! grep -q "\"version\": \"$NEW_VERSION\"" "$PLUGIN_JSON"; then
-    json_error "update_plugin_json" "Version update not applied to $PLUGIN_JSON"
-fi
-
-# Step 4: Update version in marketplace.json
-if ! sed -i '' "s/\"version\": *\"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" "$MARKETPLACE_JSON" 2>/dev/null; then
-    json_error "update_marketplace_json" "Failed to update version in $MARKETPLACE_JSON"
-fi
-
-# Verify the update was applied
-if ! grep -q "\"version\": \"$NEW_VERSION\"" "$MARKETPLACE_JSON"; then
-    json_error "update_marketplace_json" "Version update not applied to $MARKETPLACE_JSON"
-fi
-
-# Step 5: Stage all changes
-if ! git add -A 2>&1; then
-    json_error "git_add" "Failed to stage changes"
-fi
-
-# Step 6: Commit
-COMMIT_OUTPUT=$(git commit -m "$COMMIT_MESSAGE" 2>&1)
-COMMIT_STATUS=$?
-if [ $COMMIT_STATUS -ne 0 ]; then
-    # Check if it's "nothing to commit"
-    if echo "$COMMIT_OUTPUT" | grep -q "nothing to commit"; then
-        json_error "git_commit" "Nothing to commit - no changes detected"
+    # Step 3: Update version in plugin.json
+    if ! sed -i '' "s/\"version\": *\"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" "$PLUGIN_JSON" 2>/dev/null; then
+        json_error "update_plugin_json" "Failed to update version in $PLUGIN_JSON"
     fi
-    json_error "git_commit" "$COMMIT_OUTPUT"
-fi
 
-# Step 7: Pull with rebase
-REBASE_OUTPUT=$(git pull --rebase origin main 2>&1)
-REBASE_STATUS=$?
-if [ $REBASE_STATUS -ne 0 ]; then
-    # Check for conflict indicators
-    if echo "$REBASE_OUTPUT" | grep -qiE "(conflict|cannot rebase|CONFLICT)"; then
-        json_error "rebase" "Conflict detected. Run: git rebase --abort"
+    # Verify the update was applied
+    if ! grep -q "\"version\": \"$NEW_VERSION\"" "$PLUGIN_JSON"; then
+        json_error "update_plugin_json" "Version update not applied to $PLUGIN_JSON"
     fi
-    json_error "rebase" "$REBASE_OUTPUT"
-fi
 
-# Step 8: Push
-PUSH_OUTPUT=$(git push origin main 2>&1)
-PUSH_STATUS=$?
-if [ $PUSH_STATUS -ne 0 ]; then
-    json_error "push" "$PUSH_OUTPUT"
+    # Step 4: Update version in marketplace.json
+    if ! sed -i '' "s/\"version\": *\"[^\"]*\"/\"version\": \"$NEW_VERSION\"/" "$MARKETPLACE_JSON" 2>/dev/null; then
+        json_error "update_marketplace_json" "Failed to update version in $MARKETPLACE_JSON"
+    fi
+
+    # Verify the update was applied
+    if ! grep -q "\"version\": \"$NEW_VERSION\"" "$MARKETPLACE_JSON"; then
+        json_error "update_marketplace_json" "Version update not applied to $MARKETPLACE_JSON"
+    fi
+
+    # Step 5: Stage all changes
+    if ! git add -A 2>&1; then
+        json_error "git_add" "Failed to stage changes"
+    fi
+
+    # Step 6: Commit
+    COMMIT_OUTPUT=$(git commit -m "$COMMIT_MESSAGE" 2>&1)
+    COMMIT_STATUS=$?
+    if [ $COMMIT_STATUS -ne 0 ]; then
+        # Check if it's "nothing to commit"
+        if echo "$COMMIT_OUTPUT" | grep -q "nothing to commit"; then
+            json_error "git_commit" "Nothing to commit - no changes detected"
+        fi
+        json_error "git_commit" "$COMMIT_OUTPUT"
+    fi
+
+    # Step 7: Pull with rebase
+    REBASE_OUTPUT=$(git pull --rebase origin main 2>&1)
+    REBASE_STATUS=$?
+    if [ $REBASE_STATUS -ne 0 ]; then
+        # Check for conflict indicators
+        if echo "$REBASE_OUTPUT" | grep -qiE "(conflict|cannot rebase|CONFLICT)"; then
+            json_error "rebase" "Conflict detected. Run: git rebase --abort"
+        fi
+        json_error "rebase" "$REBASE_OUTPUT"
+    fi
+
+    # Step 8: Push
+    PUSH_OUTPUT=$(git push origin main 2>&1)
+    PUSH_STATUS=$?
+    if [ $PUSH_STATUS -ne 0 ]; then
+        json_error "push" "$PUSH_OUTPUT"
+    fi
+else
+    # --- Sync mode: just pull ---
+
+    PULL_OUTPUT=$(git pull origin main 2>&1)
+    PULL_STATUS=$?
+    if [ $PULL_STATUS -ne 0 ]; then
+        if echo "$PULL_OUTPUT" | grep -qiE "(conflict|cannot|error|CONFLICT)"; then
+            json_error "pull" "Pull failed: $PULL_OUTPUT"
+        fi
+        json_error "pull" "$PULL_OUTPUT"
+    fi
+
+    # Read version from pulled plugin.json for success output
+    NEW_VERSION=$(grep '"version"' "$PLUGIN_JSON" | sed 's/.*"version": *"\([^"]*\)".*/\1/')
 fi
 
 # --- Git operations complete. Below steps are non-fatal (add warnings on failure) ---
