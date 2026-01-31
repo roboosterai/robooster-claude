@@ -201,6 +201,7 @@ After testing, reinstall from marketplace.
 - specifying-concept
 - designing-architecture
 - implementing-feature
+- robooster-claude-updating — commits and pushes plugin changes with auto version bump
 
 ### Agents
 
