@@ -1,31 +1,65 @@
 #!/bin/bash
 # update-plugin.sh
-# Atomically updates robooster-claude plugin version, commits, rebases, and pushes
+# Atomically updates robooster-claude plugin version, commits, rebases, pushes,
+# and updates local marketplace/plugin
 #
-# Usage: update-plugin.sh <new_version> <commit_message> [repo_path]
+# Usage: update-plugin.sh <new_version> <commit_message> [repo_path] [original_cwd]
 #
 # Arguments:
 #   new_version    - Version string (e.g., "1.2.5")
 #   commit_message - Full commit message
 #   repo_path      - Optional path to repo (defaults to current directory)
+#   original_cwd   - Optional directory to return to for plugin operations
 #
 # Output: JSON to stdout
-#   Success: {"status":"success","version":"1.2.5"}
+#   Success: {"status":"success","version":"1.2.5","marketplace_updated":true,"plugin_updated":true,"plugin_scope":"project"}
+#   Success with warnings: {"status":"success","version":"1.2.5",...,"warnings":["message"]}
 #   Error:   {"status":"error","step":"<step_name>","message":"<error_message>"}
 
 set -o pipefail
 
 # JSON output helpers
+# These variables accumulate state for the final JSON output
+WARNINGS=()
+MARKETPLACE_UPDATED="false"
+PLUGIN_UPDATED="false"
+PLUGIN_SCOPE=""
+
+escape_json() {
+    # Escape quotes and newlines in string for valid JSON
+    echo "$1" | sed 's/"/\\"/g' | tr '\n' ' '
+}
+
 json_success() {
-    echo "{\"status\":\"success\",\"version\":\"$1\"}"
+    local version="$1"
+    local output="{\"status\":\"success\",\"version\":\"$version\""
+    output+=",\"marketplace_updated\":$MARKETPLACE_UPDATED"
+    output+=",\"plugin_updated\":$PLUGIN_UPDATED"
+    if [ -n "$PLUGIN_SCOPE" ]; then
+        output+=",\"plugin_scope\":\"$PLUGIN_SCOPE\""
+    fi
+    if [ ${#WARNINGS[@]} -gt 0 ]; then
+        output+=",\"warnings\":["
+        local first=true
+        for warning in "${WARNINGS[@]}"; do
+            if [ "$first" = true ]; then
+                first=false
+            else
+                output+=","
+            fi
+            output+="\"$(escape_json "$warning")\""
+        done
+        output+="]"
+    fi
+    output+="}"
+    echo "$output"
     exit 0
 }
 
 json_error() {
     local step="$1"
     local message="$2"
-    # Escape quotes and newlines in message for valid JSON
-    message=$(echo "$message" | sed 's/"/\\"/g' | tr '\n' ' ')
+    message=$(escape_json "$message")
     echo "{\"status\":\"error\",\"step\":\"$step\",\"message\":\"$message\"}"
     exit 1
 }
@@ -34,6 +68,7 @@ json_error() {
 NEW_VERSION="$1"
 COMMIT_MESSAGE="$2"
 REPO_PATH="${3:-.}"
+ORIGINAL_CWD="${4:-}"
 
 # Step 1: Validate arguments
 if [ -z "$NEW_VERSION" ]; then
@@ -125,5 +160,52 @@ if [ $PUSH_STATUS -ne 0 ]; then
     json_error "push" "$PUSH_OUTPUT"
 fi
 
-# Success
+# --- Git operations complete. Below steps are non-fatal (add warnings on failure) ---
+
+# Step 9: Navigate to original working directory (for plugin operations)
+if [ -n "$ORIGINAL_CWD" ]; then
+    if ! cd "$ORIGINAL_CWD" 2>/dev/null; then
+        WARNINGS+=("Could not return to original directory: $ORIGINAL_CWD")
+    fi
+fi
+
+# Step 10: Update local marketplace
+MARKETPLACE_OUTPUT=$(claude plugin marketplace update robooster-marketplace 2>&1)
+MARKETPLACE_STATUS=$?
+if [ $MARKETPLACE_STATUS -eq 0 ]; then
+    MARKETPLACE_UPDATED="true"
+else
+    WARNINGS+=("Failed to update marketplace: $MARKETPLACE_OUTPUT")
+fi
+
+# Step 11: Detect plugin scope
+PLUGIN_LIST_OUTPUT=$(claude plugin list 2>/dev/null)
+if echo "$PLUGIN_LIST_OUTPUT" | grep -q "robooster-claude"; then
+    # Extract scope from the output (look for Scope: line after robooster-claude)
+    SCOPE_LINE=$(echo "$PLUGIN_LIST_OUTPUT" | grep -A5 "robooster-claude" | grep -i "scope:" | head -1)
+    if echo "$SCOPE_LINE" | grep -qi "project"; then
+        PLUGIN_SCOPE="project"
+    elif echo "$SCOPE_LINE" | grep -qi "user"; then
+        PLUGIN_SCOPE="user"
+    fi
+fi
+
+# Step 12: Update local plugin
+if [ "$MARKETPLACE_UPDATED" = "true" ]; then
+    if [ "$PLUGIN_SCOPE" = "project" ]; then
+        PLUGIN_OUTPUT=$(claude plugin update robooster-claude@robooster-marketplace --scope project 2>&1)
+    else
+        PLUGIN_OUTPUT=$(claude plugin update robooster-claude@robooster-marketplace 2>&1)
+    fi
+    PLUGIN_STATUS=$?
+    if [ $PLUGIN_STATUS -eq 0 ]; then
+        PLUGIN_UPDATED="true"
+    else
+        WARNINGS+=("Failed to update plugin: $PLUGIN_OUTPUT")
+    fi
+else
+    WARNINGS+=("Skipped plugin update because marketplace update failed")
+fi
+
+# Success (with possible warnings)
 json_success "$NEW_VERSION"

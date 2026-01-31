@@ -393,31 +393,3 @@ Write description AFTER composing the document. Summarize findings, not intent.
 6. **Clean output** — brief summary, not full report dump
 7. **Frontmatter required** — every document must have valid frontmatter
 
----
-
-## Example Invocations
-
-```
-/researching
-```
-(Will prompt for research type and subject)
-
-```
-/researching Stripe
-```
-(Will determine appropriate domain and research Stripe)
-
-```
-/researching compare Stripe, Adyen, and PayPal
-```
-(Competitive research with parallel agent calls)
-
-```
-/researching the AI assistants market
-```
-(Market research)
-
-```
-/researching React Query library
-```
-(Technical research)
