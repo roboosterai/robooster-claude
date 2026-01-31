@@ -72,6 +72,10 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - **Constraints** — mentioned limitations, non-functional requirements
    - **Dependencies** — external systems, services, libraries referenced
    - **Open questions** — unresolved items from the concept
+   - **Implementation patterns** — algorithms, pseudocode, step-by-step logic from concept
+   - **Data structures** — exact field names, types, JSON/code examples
+   - **Validation rules** — input constraints, error conditions, edge cases
+   - **Calculation formulas** — fee calculations, balance derivations, business logic
 
 3. **Read project CLAUDE.md** for conventions, architecture, and patterns.
 
@@ -114,6 +118,21 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    >
    > ### Concept Open Questions (carried forward)
    > - {Question}
+   >
+   > ### Implementation Patterns
+   > | Pattern | Steps | Used By |
+   > |---------|-------|---------|
+   > | {name} | {brief pseudocode} | {functional area} |
+   >
+   > ### Data Structures
+   > | Structure | Fields | Example |
+   > |-----------|--------|---------|
+   > | {name} | {key fields with types} | {brief JSON} |
+   >
+   > ### Validation Rules
+   > | Rule | Condition | Behavior |
+   > |------|-----------|----------|
+   > | {name} | {when X} | {reject/error} |
 
    No gate here — this is informational. The user sees what was extracted and can correct omissions inline before Phase 3.
 
@@ -185,6 +204,12 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - Dependencies between flows determine ordering
    - A task should be implementable in one Claude Code session
 
+   Implementation detail heuristics:
+   - If concept has pseudocode for this task's logic → include or reference §8
+   - If concept has data structure definitions → include types and example
+   - If concept has validation examples → extract one concrete example per task
+   - Goal: Each task implementable WITHOUT returning to concept document
+
 2. **Present proposed tasks:**
 
    > ## Proposed Tasks
@@ -199,6 +224,12 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    > - **Dependencies:** None
    > - **Status:** Pending
    >
+   > #### Implementation Notes
+   > - **Data structures:** {structures this task creates/uses, or "See §8.1"}
+   > - **Algorithm:** {brief pseudocode or "See §8.2.N"}
+   > - **Validation:** {task-specific rules}
+   > - **Example:** {input → expected output, if applicable}
+   >
    > ---
    >
    > ### Task 2: {Name}
@@ -206,6 +237,12 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    > - **Functional areas covered:** ...
    > - **Dependencies:** Requires Task 1
    > - **Status:** Pending
+   >
+   > #### Implementation Notes
+   > - **Data structures:** {...}
+   > - **Algorithm:** {...}
+   > - **Validation:** {...}
+   > - **Example:** {...}
    >
    > ...
 
@@ -454,6 +491,53 @@ Project structure, conventions, and patterns to follow.
 Must be empty before implementation starts.
 
 - [ ] {Question — classify as spec gap or concept gap}
+
+## 8. Implementation Reference
+
+Detailed implementation context extracted from concept. Tasks reference this section.
+
+### 8.1 Data Structures
+
+#### {StructureName}
+
+| Field | Type | Description |
+|-------|------|-------------|
+| {field} | {type} | {purpose} |
+
+**Example:**
+```json
+{example from concept}
+```
+
+### 8.2 Algorithms
+
+#### 8.2.1 {Algorithm Name}
+
+**Used by:** Task {N}
+
+**Steps:**
+1. {step}
+2. {step}
+3. {step}
+
+**Edge cases:**
+- {case}: {handling}
+
+### 8.3 Validation Rules
+
+| Rule | Condition | Behavior | Task |
+|------|-----------|----------|------|
+| {name} | {when X} | {reject/error} | Task {N} |
+
+### 8.4 Entry Patterns (if applicable)
+
+#### {Pattern Name}
+
+| # | Account | Type | Amount | Source |
+|---|---------|------|--------|--------|
+| 1 | {account} | {Debit/Credit} | {amount} | {source} |
+
+**Balance check:** {formula}
 ```
 
 ---

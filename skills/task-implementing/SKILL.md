@@ -90,8 +90,19 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - **Codebase Context** — project structure, conventions, build/test commands
    - **Testing Strategy** — per-task testing, test patterns
    - **Approach** — architecture, design decisions, components
+   - **Implementation Reference (§8)** — data structures, algorithms, validation rules
 
-3. **Select target task:**
+3. **Read the Concept document** (from spec frontmatter `concept:` field):
+   - If spec frontmatter contains `concept:` path → read that document
+   - Extract for target task:
+     - Algorithms and pseudocode relevant to task's acceptance criteria
+     - Data structure definitions used by this task
+     - Validation examples and edge cases
+     - Domain formulas or calculations
+   - NOTE: Spec should be self-contained. Concept reading supplements
+     implementation details not in spec's Section 8.
+
+4. **Select target task:**
    - If `--task` arg provided — use it
    - Otherwise — present task list and ask user to select:
 
@@ -99,17 +110,17 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
    **Options:** (from spec's task list, showing name + goal)
 
-4. **If target task > 1, read previous handoff:**
+5. **If target task > 1, read previous handoff:**
    - Read the previous task's section in the spec file. If it contains a `**Handoff:**` link, read that file.
    - Extract: what was built, decisions made, deviations, notes for this task
 
-5. **If `--review` arg provided, read review findings file:**
+6. **If `--review` arg provided, read review findings file:**
    - Extract findings with priorities
    - These become additional acceptance criteria for this session
 
-6. **Read project CLAUDE.md** for the services involved
+7. **Read project CLAUDE.md** for the services involved
 
-7. **Explore codebase if needed:**
+8. **Explore codebase if needed:**
 
    If key files from the task don't exist yet or codebase context is thin:
 
@@ -123,29 +134,34 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    )
    ```
 
-8. **Ask clarifying questions** via AskUserQuestion if gaps exist between the spec and what you need to implement
+9. **Ask clarifying questions** via AskUserQuestion if gaps exist between the spec and what you need to implement
 
-9. **Present task summary:**
+10. **Present task summary:**
 
-   > ## Task {N}: {Name}
-   >
-   > **Goal:** {goal}
-   >
-   > **Acceptance Criteria:**
-   > - {criterion 1}
-   > - {criterion 2}
-   >
-   > **Key Files:** {files}
-   > **Dependencies:** {dependencies}
-   > **Previous Handoff:** {summary or "First task"}
-   > **Review Fixes:** {findings to address or "None"}
-   >
-   > **Boundaries:**
-   > - In scope: {relevant boundaries}
-   > - Out of scope: {relevant boundaries}
-   > - Protected: {protected elements}
+    > ## Task {N}: {Name}
+    >
+    > **Goal:** {goal}
+    >
+    > **Acceptance Criteria:**
+    > - {criterion 1}
+    > - {criterion 2}
+    >
+    > **Implementation Context:**
+    > - Data structures: {from spec §8.1 or concept}
+    > - Algorithm: {from spec §8.2 or concept, brief}
+    > - Validation: {rules that apply}
+    >
+    > **Key Files:** {files}
+    > **Dependencies:** {dependencies}
+    > **Previous Handoff:** {summary or "First task"}
+    > **Review Fixes:** {findings to address or "None"}
+    >
+    > **Boundaries:**
+    > - In scope: {relevant boundaries}
+    > - Out of scope: {relevant boundaries}
+    > - Protected: {protected elements}
 
-10. **Gate G1:**
+11. **Gate G1:**
 
     **Question:** "Understanding confirmed? Ready to plan?"
 
@@ -278,6 +294,17 @@ Task(
            Acceptance Criteria:
            {acceptance criteria from spec}
 
+           Implementation Details:
+           - Data structures: {from spec §8 or concept}
+           - Algorithm steps: {pseudocode from spec §8 or concept}
+           - Validation rules: {rules with expected error cases}
+
+           Example Input/Output:
+           {from spec task Implementation Notes or §8}
+
+           Edge Cases to Test:
+           {from spec §8.2 edge cases}
+
            Implemented Files:
            {list of files created/modified in Phase 4}
 
@@ -287,7 +314,7 @@ Task(
            Test Patterns (from Feature Spec):
            {test patterns from spec's Codebase Context}
 
-           Write unit tests covering all written/edited code.",
+           Write unit tests covering all acceptance criteria and edge cases.",
   description: "Write tests for task implementation"
 )
 ```
