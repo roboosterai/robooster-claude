@@ -19,9 +19,13 @@ Streamlined release workflow for robooster-claude plugin with single confirmatio
 1. **Store original working directory** — Run `pwd` and save as `ORIGINAL_CWD`
 
 2. **Find robooster-claude repository:**
-   - Check if current dir is robooster-claude: `git remote -v 2>/dev/null | grep -q "robooster-claude"`
-   - If not, check `../robooster-claude` and `../../robooster-claude`
-   - If still not found, ask user for the path
+
+   Check if `$PWD/robooster-claude` exists:
+   ```bash
+   [ -d "$PWD/robooster-claude/.git" ] && ROBOOSTER_CLAUDE_DIR="$PWD/robooster-claude"
+   ```
+
+   If not found, ask user for the path.
 
 3. **Check for changes:**
    ```bash
