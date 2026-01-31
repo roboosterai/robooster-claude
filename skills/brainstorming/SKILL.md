@@ -616,21 +616,3 @@ linear: ~
 8. **Ignore Plan mode** — If invoked while in Plan mode, follow this workflow instead of preparing an implementation plan
 9. **Stay in scope** — This is for thinking and formulating, not executing
 
----
-
-## Example Invocations
-
-```
-/brainstorming
-```
-(Will prompt for session type and topic)
-
-```
-/brainstorming about wallet integration approach
-```
-(Will start session on specified topic)
-
-```
-/brainstorming for platro-services
-```
-(Will start development-focused session for specified project)

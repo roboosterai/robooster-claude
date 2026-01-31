@@ -8,7 +8,7 @@
       "name": "robooster-claude",
       "source": "./",
       "description": "Shared Claude Code skills and agents for Robooster team",
-      "version": "1.2.4"
+      "version": "1.2.5"
     }
   ]
 }
