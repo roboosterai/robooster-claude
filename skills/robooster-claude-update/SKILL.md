@@ -14,30 +14,66 @@ Execute phases in order. Use `AskUserQuestion` for all human gates.
 
 ---
 
+## Session Variables
+
+Track these variables throughout the skill execution:
+
+| Variable | Purpose | Set In |
+|----------|---------|--------|
+| `ORIGINAL_CWD` | Directory where user invoked the skill | Phase 1, Step 1 |
+| `ROBOOSTER_CLAUDE_DIR` | Discovered robooster-claude repo path | Phase 1, Step 2 |
+
+---
+
 ### Phase 1: Check Status
 
 **Goal:** Verify there are changes to commit
 
 **Actions:**
 
-1. **Navigate to robooster-claude directory:**
+1. **Store original working directory:**
 
    ```bash
-   cd /Users/bedzhanyan/robooster_projects/robooster-claude
+   ORIGINAL_CWD=$(pwd)
    ```
 
-2. **Run git status:**
+   Remember this value for Phase 6.
+
+2. **Find robooster-claude repository:**
+
+   First, check if already in robooster-claude:
+   ```bash
+   git remote -v 2>/dev/null | grep -q "robooster-claude"
+   ```
+
+   If yes: `ROBOOSTER_CLAUDE_DIR=$(pwd)`
+
+   If not, search for it:
+   - Look for `.claude-plugin/plugin.json` containing `"name": "robooster-claude"`
+   - Check common locations: parent directories, sibling directories
+   - Use: `find .. -maxdepth 3 -name "plugin.json" -exec grep -l "robooster-claude" {} \; 2>/dev/null`
+
+   If still not found, ask user:
+   > Could not locate robooster-claude repository. Please provide the path.
+
+3. **Navigate to robooster-claude:**
+
+   ```bash
+   cd $ROBOOSTER_CLAUDE_DIR
+   ```
+
+4. **Run git status:**
 
    ```bash
    git status --short
    ```
 
-3. **If no changes:**
+5. **If no changes:**
    > No changes detected in robooster-claude. Nothing to do.
 
    **Exit skill.**
 
-4. **If changes exist, show summary:**
+6. **If changes exist, show summary:**
    > **Changes detected:**
    > ```
    > {git status output}
@@ -250,13 +286,21 @@ Execute phases in order. Use `AskUserQuestion` for all human gates.
 
 **Actions:**
 
-1. **Update marketplace:**
+1. **Return to original working directory:**
+
+   ```bash
+   cd $ORIGINAL_CWD
+   ```
+
+   This ensures plugin commands run from the correct project context.
+
+2. **Update marketplace:**
 
    ```bash
    claude plugin marketplace update robooster-marketplace
    ```
 
-2. **Check plugin scope:**
+3. **Check plugin scope:**
 
    ```bash
    claude plugin list | grep -A3 "robooster-claude"
@@ -264,7 +308,7 @@ Execute phases in order. Use `AskUserQuestion` for all human gates.
 
    Look for the `Scope:` line in the output.
 
-3. **Update plugin based on scope:**
+4. **Update plugin based on scope:**
 
    **If scope is `user`:**
    ```bash
@@ -273,12 +317,12 @@ Execute phases in order. Use `AskUserQuestion` for all human gates.
 
    **If scope is `project`:**
    ```bash
-   cd /Users/bedzhanyan/robooster_projects && claude plugin update robooster-claude@robooster-marketplace --scope project
+   claude plugin update robooster-claude@robooster-marketplace --scope project
    ```
 
-   Note: The plugin is installed at the parent project directory, not within robooster-claude itself.
+   Note: Since we restored `ORIGINAL_CWD` in step 1, the plugin update runs from the correct project context.
 
-4. **Final summary:**
+5. **Final summary:**
 
    > ## Update Complete
    >
