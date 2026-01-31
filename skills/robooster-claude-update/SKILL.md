@@ -256,13 +256,29 @@ Execute phases in order. Use `AskUserQuestion` for all human gates.
    claude plugin marketplace update robooster-marketplace
    ```
 
-2. **Update plugin:**
+2. **Check plugin scope:**
 
+   ```bash
+   claude plugin list | grep -A3 "robooster-claude"
+   ```
+
+   Look for the `Scope:` line in the output.
+
+3. **Update plugin based on scope:**
+
+   **If scope is `user`:**
    ```bash
    claude plugin update robooster-claude@robooster-marketplace
    ```
 
-3. **Final summary:**
+   **If scope is `project`:**
+   ```bash
+   cd /Users/bedzhanyan/robooster_projects && claude plugin update robooster-claude@robooster-marketplace --scope project
+   ```
+
+   Note: The plugin is installed at the parent project directory, not within robooster-claude itself.
+
+4. **Final summary:**
 
    > ## Update Complete
    >
