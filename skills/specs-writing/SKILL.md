@@ -82,12 +82,17 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 4. **Explore the codebase** to understand what exists:
    ```
    Task(
-     subagent_type: "Explore",
+     subagent_type: "robooster-claude:code-explorer",
      prompt: "Explore the codebase focusing on: [areas relevant to concept].
-              Find: existing patterns, similar features, extension points,
-              relevant file structure, test patterns, build/test commands.
-              Return detailed findings.",
-     description: "Explore codebase for spec"
+
+              Find and return structured findings:
+              - Key Files: 5-10 most relevant files with file:line references
+              - Patterns Found: existing patterns, naming conventions, similar features
+              - Architecture Insights: layer structure, abstractions, how new feature would fit
+              - Integration Points: extension mechanisms, how components communicate
+
+              Also identify: test patterns, build/test commands from CLAUDE.md or package files.",
+     description: "Deep codebase analysis for spec"
    )
    ```
 
@@ -114,7 +119,20 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    > - {Constraint}
    >
    > ### Codebase Findings
-   > - {Pattern/structure relevant to implementation}
+   >
+   > **Key Files:**
+   > | File | Line | Relevance |
+   > |------|------|-----------|
+   > | {file:line} | {lines} | {why relevant} |
+   >
+   > **Patterns Found:**
+   > - {Pattern}: {description}
+   >
+   > **Architecture Insights:**
+   > - {Insight}
+   >
+   > **Integration Points:**
+   > - {Point}: {how to extend}
    >
    > ### Concept Open Questions (carried forward)
    > - {Question}
@@ -552,5 +570,5 @@ Detailed implementation context extracted from concept. Tasks reference this sec
 6. **Frontmatter required** — Every output file must have valid frontmatter
 7. **One question per message** — Keep interactions focused
 8. **Respect all three gates** — Do not skip human approval checkpoints
-9. **Codebase exploration is mandatory** — Always explore the codebase in Phase 2. A spec without codebase context is incomplete.
+9. **Deep codebase exploration is mandatory** — Always use code-explorer in Phase 2. A spec without thorough codebase analysis is incomplete.
 10. **Open Questions must be empty** — Before implementation starts, not before saving. Flag them, save, iterate later.

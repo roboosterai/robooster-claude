@@ -159,7 +159,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 ```
 Task(
-  subagent_type: "web-researcher",
+  subagent_type: "robooster-claude:web-researcher",
   prompt: "Domain: {domain}
 Subject: {subject}
 Date: {date}
@@ -178,7 +178,7 @@ Return structured findings. Do not write files.",
 One agent call:
 ```
 Task(
-  subagent_type: "web-researcher",
+  subagent_type: "robooster-claude:web-researcher",
   prompt: "Domain: company\nSubject: Stripe\nDate: 2026-01-21\n\nResearch context: Focus on payment processing capabilities and enterprise pricing.\n\nReturn structured findings. Do not write files.",
   description: "Researching Stripe"
 )
@@ -189,9 +189,9 @@ Task(
 **CRITICAL:** Spawn agents IN PARALLEL (single message, multiple Task calls)
 
 ```
-Task(subagent_type: "web-researcher", prompt: "Domain: company\nSubject: Stripe\nDate: 2026-01-21...", description: "Researching Stripe")
-Task(subagent_type: "web-researcher", prompt: "Domain: company\nSubject: Adyen\nDate: 2026-01-21...", description: "Researching Adyen")
-Task(subagent_type: "web-researcher", prompt: "Domain: company\nSubject: PayPal\nDate: 2026-01-21...", description: "Researching PayPal")
+Task(subagent_type: "robooster-claude:web-researcher", prompt: "Domain: company\nSubject: Stripe\nDate: 2026-01-21...", description: "Researching Stripe")
+Task(subagent_type: "robooster-claude:web-researcher", prompt: "Domain: company\nSubject: Adyen\nDate: 2026-01-21...", description: "Researching Adyen")
+Task(subagent_type: "robooster-claude:web-researcher", prompt: "Domain: company\nSubject: PayPal\nDate: 2026-01-21...", description: "Researching PayPal")
 ```
 
 #### Multi-Domain Research
@@ -199,9 +199,9 @@ Task(subagent_type: "web-researcher", prompt: "Domain: company\nSubject: PayPal\
 **CRITICAL:** Spawn agents IN PARALLEL (single message, multiple Task calls)
 
 ```
-Task(subagent_type: "web-researcher", prompt: "Domain: market\nSubject: AI assistants market...", description: "Researching AI market")
-Task(subagent_type: "web-researcher", prompt: "Domain: company\nSubject: OpenAI...", description: "Researching OpenAI")
-Task(subagent_type: "web-researcher", prompt: "Domain: company\nSubject: Anthropic...", description: "Researching Anthropic")
+Task(subagent_type: "robooster-claude:web-researcher", prompt: "Domain: market\nSubject: AI assistants market...", description: "Researching AI market")
+Task(subagent_type: "robooster-claude:web-researcher", prompt: "Domain: company\nSubject: OpenAI...", description: "Researching OpenAI")
+Task(subagent_type: "robooster-claude:web-researcher", prompt: "Domain: company\nSubject: Anthropic...", description: "Researching Anthropic")
 ```
 
 **Proceed when:** All agent(s) return findings

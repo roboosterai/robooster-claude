@@ -126,7 +126,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 4. **For codebase exploration — launch code-explorer agent:**
    ```
    Task(
-     subagent_type: "code-explorer",
+     subagent_type: "robooster-claude:code-explorer",
      prompt: "Explore [target area] focusing on: existing patterns,
               architecture, similar features, extension points.
               Return findings relevant to [concept topic].",

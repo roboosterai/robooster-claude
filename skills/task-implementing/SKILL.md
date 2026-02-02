@@ -92,15 +92,14 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - **Approach** — architecture, design decisions, components
    - **Implementation Reference (§8)** — data structures, algorithms, validation rules
 
-3. **Read the Concept document** (from spec frontmatter `concept:` field):
-   - If spec frontmatter contains `concept:` path → read that document
-   - Extract for target task:
-     - Algorithms and pseudocode relevant to task's acceptance criteria
-     - Data structure definitions used by this task
-     - Validation examples and edge cases
-     - Domain formulas or calculations
-   - NOTE: Spec should be self-contained. Concept reading supplements
-     implementation details not in spec's Section 8.
+3. **Extract testing requirements for target task:**
+   - Locate the **Per-Task Testing** table in Section 6 (Testing Strategy)
+   - Find the row for Task N
+   - Extract:
+     - **What to Test:** specific test coverage required
+     - **Test Type:** Unit, Integration, or Integration (emulator)
+   - Locate any **Test Patterns** in Section 6 that apply to this task type
+   - Store these for Phase 5 test-writer prompt
 
 4. **Select target task:**
    - If `--task` arg provided — use it
@@ -126,7 +125,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
    ```
    Task(
-     subagent_type: "code-explorer",
+     subagent_type: "robooster-claude:code-explorer",
      prompt: "Explore the codebase focusing on: [areas from task key files and spec codebase context].
               Find: existing patterns, similar features, extension points, relevant file structure.
               Return detailed findings.",
@@ -147,9 +146,14 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
     > - {criterion 2}
     >
     > **Implementation Context:**
-    > - Data structures: {from spec §8.1 or concept}
-    > - Algorithm: {from spec §8.2 or concept, brief}
+    > - Data structures: {from spec §8.1}
+    > - Algorithm: {from spec §8.2, brief}
     > - Validation: {rules that apply}
+    >
+    > **Testing Requirements (from Section 6):**
+    > - What to Test: {from Per-Task Testing table}
+    > - Test Type: {Unit/Integration/Integration (emulator)}
+    > - Test Pattern: {pattern name if applicable, or "Standard"}
     >
     > **Key Files:** {files}
     > **Dependencies:** {dependencies}
@@ -285,37 +289,36 @@ Launch test-writer agent:
 
 ```
 Task(
-  subagent_type: "test-writer",
-  prompt: "Write comprehensive tests for the implementation.
+  subagent_type: "robooster-claude:test-writer",
+  prompt: "Write tests for the implementation.
 
-           Feature Context:
-           {task name and goal from spec}
+           ## Feature Context
+           Task: {task name and goal from spec}
 
-           Acceptance Criteria:
+           ## Required Test Coverage (from Spec Section 6)
+           **Test Type:** {Unit/Integration/Integration (emulator)}
+           **What to Test:** {exact text from Per-Task Testing table}
+
+           ## Acceptance Criteria to Cover
            {acceptance criteria from spec}
 
-           Implementation Details:
-           - Data structures: {from spec §8 or concept}
-           - Algorithm steps: {pseudocode from spec §8 or concept}
+           ## Test Pattern to Follow
+           {if spec has a test pattern for this task type, include it verbatim}
+           {otherwise: "Follow existing test patterns in the codebase"}
+
+           ## Implementation Details
+           - Data structures: {from spec §8}
+           - Algorithm steps: {pseudocode from spec §8}
            - Validation rules: {rules with expected error cases}
 
-           Example Input/Output:
-           {from spec task Implementation Notes or §8}
-
-           Edge Cases to Test:
-           {from spec §8.2 edge cases}
-
-           Implemented Files:
+           ## Files to Test
            {list of files created/modified in Phase 4}
 
-           Testing Strategy (from Feature Spec):
-           {testing strategy section relevant to this task}
+           ## Build/Test Commands
+           {from spec Codebase Context}
 
-           Test Patterns (from Feature Spec):
-           {test patterns from spec's Codebase Context}
-
-           Write unit tests covering all acceptance criteria and edge cases.",
-  description: "Write tests for task implementation"
+           Write {test_type} tests covering the specific areas listed above.",
+  description: "Write {test_type} tests for task"
 )
 ```
 
@@ -327,7 +330,7 @@ Launch test-verifier agent:
 
 ```
 Task(
-  subagent_type: "test-verifier",
+  subagent_type: "robooster-claude:test-verifier",
   prompt: "Verify test quality for the implementation.
 
            Test Files:
@@ -346,30 +349,48 @@ Task(
 )
 ```
 
-#### Step 3: Acceptance Criteria Verification
+#### Step 3: Acceptance Criteria Verification (ac-verifier agent)
 
-Verify every acceptance criterion from the spec task is satisfied.
+Launch ac-verifier agent for evidence-based verification:
 
-1. **Re-read the target task's acceptance criteria** from the spec file
-2. **For each criterion, verify:**
-   - **Code-verifiable** (file exists, class created, method has correct signature) → read the relevant files and confirm
-   - **Test-verifiable** (tests pass, build passes) → confirmed in Phase 4, mark as met
-   - **Test-coverage-verifiable** (unit tests for X scenarios) → check test files from Step 1 cover it
-   - **Behavior-verifiable** (logic correctness, fee clearing works) → read implementation and confirm it matches criterion intent
-3. **Produce verdict:**
+```
+Task(
+  subagent_type: "robooster-claude:ac-verifier",
+  prompt: "Verify implementation against acceptance criteria.
 
-   > ## Acceptance Criteria Verification
-   >
-   > - [x] {criterion 1} — **Met.** {1-line evidence}
-   > - [x] {criterion 2} — **Met.** {1-line evidence}
-   > - [ ] {criterion 3} — **Not met.** {what's missing}
-   > - [~] {criterion 4} — **Partial.** {what's done, what's missing}
+           Task: {N} — {task name}
+           Goal: {task goal}
 
-4. **If any Not Met or Partial:**
-   - Fix implementation inline (targeted changes, not full re-plan)
-   - Re-run build and test commands
-   - Re-verify the affected criteria
-   - If a criterion cannot be met, document as deviation for the handoff
+           Acceptance Criteria:
+           {exact AC list from spec}
+
+           Key Files:
+           {key files from spec}
+
+           Implementation Reference:
+           {from spec §8 - data structures, algorithms, validation rules}
+
+           Build/Test Commands:
+           {from spec Codebase Context}
+
+           Verify each AC independently. Trust only codebase and AC.
+           Run tests if needed to verify behavior criteria.",
+  description: "Verify acceptance criteria"
+)
+```
+
+**Interpret results:**
+
+- **PASS:** All ACs verified with evidence → Proceed to Step 4
+- **PARTIAL or FAIL:** Fix issues from ac-verifier output, re-run verification
+
+**AC verification iteration (max 2 rounds):**
+
+1. If not PASS, fix the specific issues identified
+2. Re-run ac-verifier (only ac-verifier, not full cycle)
+3. If still not PASS after 2 iterations:
+   - Document unmet ACs with reasons
+   - Present to user at Gate G3 for decision
 
 #### Step 4: Code Review (3 parallel code-reviewer agents)
 
@@ -377,7 +398,7 @@ Launch 3 code-reviewer agents in parallel:
 
 ```
 Task(
-  subagent_type: "code-reviewer",
+  subagent_type: "robooster-claude:code-reviewer",
   prompt: "Review these files for simplicity, DRY, and elegance.
            Focus on: unnecessary complexity, code duplication,
            readability issues, overly clever code.
@@ -390,7 +411,7 @@ Task(
 
 ```
 Task(
-  subagent_type: "code-reviewer",
+  subagent_type: "robooster-claude:code-reviewer",
   prompt: "Review these files for bugs and functional correctness.
            Focus on: logic errors, edge cases, null handling,
            error paths, race conditions.
@@ -403,7 +424,7 @@ Task(
 
 ```
 Task(
-  subagent_type: "code-reviewer",
+  subagent_type: "robooster-claude:code-reviewer",
   prompt: "Review these files for project conventions and abstractions.
            Focus on: naming conventions, architecture patterns,
            proper use of existing abstractions, consistency.
@@ -416,11 +437,12 @@ Task(
 
 #### Step 5: Evaluate & Iterate
 
-1. Consolidate all findings from test-verifier and code-reviewers
+1. Consolidate all findings from test-verifier, ac-verifier, and code-reviewers
 2. **If findings need fixes AND iteration < 3:**
    - Fix issues inline (no re-planning needed — review fixes are typically small)
    - Run build and test commands to verify fixes don't break anything
    - Increment iteration counter
+   - **If ac-verifier was not PASS:** Re-run ac-verifier only (not full cycle) to confirm fixes
    - Loop back to Step 1 (re-run full cycle: tests may need updating after fixes)
 3. **If no findings OR iteration >= 3:**
    - Present results summary to user
@@ -440,7 +462,7 @@ Task(
 
    ```
    Task(
-     subagent_type: "xml-comments-writer",
+     subagent_type: "robooster-claude:xml-comments-writer",
      prompt: "Add XML documentation to these C# files in platro-services:
 
               Files:
@@ -493,8 +515,9 @@ Present summary with results:
 > - Findings addressed: {count}
 > - Findings remaining: {count} (list if any)
 >
-> **Acceptance Criteria:** {N}/{total} met, {M} partial, {K} not met
-> - {list any unmet/partial with reason}
+> **Acceptance Criteria:** {PASS/PARTIAL/FAIL}
+> - Verified: {N}/{total}
+> - Not met: {list from ac-verifier output, or "None"}
 >
 > **XML Documentation:** {Clean / N errors remaining / N/A}
 
@@ -542,9 +565,14 @@ Present summary with results:
    - {What was built}
 
    ## Acceptance Criteria Status
-   - [x] {criterion 1}
-   - [x] {criterion 2}
-   - [ ] {criterion not met, if any — with explanation}
+
+   | # | Criterion | Status | Evidence |
+   |---|-----------|--------|----------|
+   | 1 | {criterion 1} | PASS | `{file:line}` — {brief evidence} |
+   | 2 | {criterion 2} | PASS | `{file:line}` — {brief evidence} |
+   | 3 | {criterion not met} | FAIL | {what's missing} |
+
+   *Verified by ac-verifier agent with code-level evidence.*
 
    ## Files Changed
    - {file}: {what changed}
@@ -561,7 +589,7 @@ Present summary with results:
    - Review iterations: {count}
    - Remaining findings: {list or "None"}
 
-   Note: The `Acceptance Criteria Status` section must reflect the Step 3 verdict from Phase 5. Do not mark criteria as met unless verified.
+   Note: The `Acceptance Criteria Status` table must reflect the ac-verifier output from Phase 5 Step 3. Copy the Detailed Results table from ac-verifier. Do not mark criteria as PASS unless verified with evidence.
 
    ## For Next Task
    - {What the next session needs to know}
@@ -581,7 +609,7 @@ Present summary with results:
    - - [ ] Criterion text here
    + - [x] Criterion text here
    ```
-   Only check boxes (`[x]`) for criteria verified as **Met** in Phase 5 Step 3. Leave `[ ]` for unmet/partial criteria.
+   Only check boxes (`[x]`) for criteria with **PASS** status in ac-verifier output. Leave `[ ]` for PARTIAL or FAIL criteria.
 
    **Edit B — Add status fields:** After the task's `**Dependencies:**` line, append:
    ```markdown

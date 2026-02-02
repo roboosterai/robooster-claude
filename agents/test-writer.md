@@ -54,10 +54,12 @@ Cover all code paths: happy paths, error paths, edge cases, boundary conditions.
 
 **1. Parse Input**
 
-- Extract feature description from PRD
-- Identify implemented files list from skill input
-- Note testing strategy from Architecture document
-- Review existing test patterns provided
+- Extract task name, goal, and acceptance criteria
+- Identify **required test type** (Unit/Integration/Integration with emulator)
+- Extract **what to test** from Per-Task Testing table
+- Note test pattern to follow (if provided in prompt)
+- Identify implementation files to test
+- Note build/test commands
 
 **2. Understand Implementation**
 
@@ -105,14 +107,17 @@ Cover all code paths: happy paths, error paths, edge cases, boundary conditions.
 
 ## Input Contract
 
-When invoked by implementing-feature skill (Phase 9), expect these inputs:
+When invoked by task-implementing skill (Phase 5), expect these inputs:
 
 | Input | Source | Description |
 |-------|--------|-------------|
-| Feature description | PRD | What the feature does (requirements) |
-| Implemented files | Phase 8 | List of files to test |
-| Testing strategy | Architecture Section 11 | How to approach testing |
-| Test patterns | Phase 4 exploration | Existing conventions to match |
+| Feature context | Spec | Task name, goal, acceptance criteria |
+| Required test type | Spec Section 6 | Unit, Integration, or Integration (emulator) |
+| What to test | Spec Section 6 | Specific coverage from Per-Task Testing table |
+| Test pattern | Spec Section 6 | Example test code to follow (if provided) |
+| Implementation details | Spec Section 8 | Data structures, algorithms, validation rules |
+| Files to test | Phase 4 | List of implementation files |
+| Build/test commands | Spec Section 5 | How to run tests |
 
 ---
 

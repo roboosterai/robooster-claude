@@ -102,13 +102,14 @@ This agent detects issues; test-writer or skill fixes them. Your job is to run a
 
 ## Input Contract
 
-When invoked by implementing-feature skill (Phase 10), expect these inputs:
+When invoked by task-implementing skill (Phase 5), expect these inputs:
 
 | Input | Source | Description |
 |-------|--------|-------------|
-| Test files | Phase 9 (test-writer) | List of test file paths to verify |
-| Implementation files | Phase 8 | List of implementation file paths tested |
+| Test files | test-writer agent | List of test file paths to verify |
+| Implementation files | Phase 4 | List of implementation file paths tested |
 | Targets | Skill prompt | Mutation score and coverage thresholds |
+| Required test type | Skill prompt | Expected test type from spec (if specified) |
 
 ---
 
@@ -119,6 +120,20 @@ When invoked by implementing-feature skill (Phase 10), expect these inputs:
 - **Don't modify tests** — Detection only; test-writer or skill handles fixes
 - **Bash: run tests and tools only** — No file modification commands; only test/analysis execution
 - **Always cite sources** — Every finding must have file:line reference
+
+---
+
+## Test Type Verification
+
+When the skill prompt specifies a required test type, verify compliance:
+
+| Required Type | Verification |
+|---------------|--------------|
+| Unit | Tests use mocks/stubs, no external dependencies, fast execution |
+| Integration | Tests involve multiple components, may use test databases |
+| Integration (emulator) | Tests use Testcontainers or similar, connect to emulator service |
+
+**Report in summary if test type doesn't match requirements.**
 
 ---
 
@@ -203,6 +218,7 @@ Return findings in this structure:
 | Branch Coverage | {coverage}% | >70% | PASS/WARN/FAIL |
 | Critical Red Flags | {count} | 0 | PASS/FAIL |
 | High Red Flags | {count} | <3 | PASS/WARN |
+| Test Type Match | {Unit/Integration/etc.} | {required type} | PASS/WARN |
 
 **Overall Verdict:** PASS / WARN / FAIL
 
