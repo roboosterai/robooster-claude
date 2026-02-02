@@ -4,7 +4,7 @@ description: Commits and pushes robooster-claude changes with automatic version 
 user-invocable: true
 ---
 
-# robooster-claude-update
+# robooster-claude-updating
 
 Streamlined release workflow for robooster-claude plugin with single confirmation gate.
 
