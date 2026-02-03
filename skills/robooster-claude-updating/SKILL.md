@@ -64,13 +64,91 @@ Streamlined release workflow for robooster-claude plugin with single confirmatio
    - Minor: `major.(minor+1).0`
    - Patch: `major.minor.(patch+1)`
 
-6. **Compose commit message:**
-   ```
-   chore: bump version to {NEW_VERSION}
+6. **Analyze changes and generate descriptions:**
 
-   Changes:
-   - {list each changed file from GIT_STATUS}
+   For each file in `GIT_STATUS`:
+
+   a. Get the diff:
+      - Modified files: `git diff HEAD -- {file}`
+      - Staged files: `git diff --cached -- {file}`
+      - Untracked files: Read file content directly
+
+   b. Analyze the diff semantically:
+      - What functionality was added, changed, fixed, or removed?
+      - Focus on user-visible behavior, not implementation details
+
+   c. Categorize the change:
+      | Category | When to use |
+      |----------|-------------|
+      | **Added** | New skills, agents, features, flags |
+      | **Changed** | Modified behavior, updated prompts, refactored logic |
+      | **Fixed** | Bug corrections, error handling improvements |
+      | **Removed** | Deleted skills, agents, deprecated features |
+
+   d. Write a concise description (one line, no file paths)
+
+   **Example analysis:**
+
+   | File | Diff Summary | Category | Description |
+   |------|--------------|----------|-------------|
+   | `skills/task-implementing/SKILL.md` | Added --muttests argument | Added | `--muttests` flag to task-implementing skill |
+   | `agents/test-verifier.md` | New agent file | Added | test-verifier agent for mutation testing |
+   | `skills/brainstorming/SKILL.md` | Changed prompt text | Changed | Simplified brainstorming skill prompts |
+
+   Store results as `CHANGELOG_ENTRIES` grouped by category.
+
+7. **Compose commit message:**
+
+   Determine commit type from primary change category:
+
+   | Primary Category | Commit Type |
+   |------------------|-------------|
+   | Added (new features) | `feat` |
+   | Changed (modifications) | `refactor` or `docs` |
+   | Fixed (bug fixes) | `fix` |
+   | Removed (deletions) | `refactor` |
+
+   Identify the main change for the summary line (most significant or first Added item).
+
+   Format:
    ```
+   {type}: {brief summary of main change}
+
+   {CHANGELOG_ENTRIES as bullet list, grouped by category}
+   ```
+
+   **Example:**
+   ```
+   feat: add mutation testing support to task-implementing
+
+   Added:
+   - test-verifier agent for mutation testing validation
+   - --muttests flag with options: all, new, none
+
+   Changed:
+   - Simplified task handoff document format
+   ```
+
+8. **Prepare changelog entry:**
+
+   Format `CHANGELOG_ENTRY` for insertion:
+   ```markdown
+   ## {NEW_VERSION} — {YYYY-MM-DD}
+
+   **Added**
+   - {items from CHANGELOG_ENTRIES.Added}
+
+   **Changed**
+   - {items from CHANGELOG_ENTRIES.Changed}
+
+   **Fixed**
+   - {items from CHANGELOG_ENTRIES.Fixed}
+
+   **Removed**
+   - {items from CHANGELOG_ENTRIES.Removed}
+   ```
+
+   Only include categories that have entries.
 
 **Proceed to Phase 2**
 
@@ -88,9 +166,15 @@ Present confirmation using **AskUserQuestion**:
 
 Include in description:
 - Repository path
-- Changes (GIT_STATUS)
 - Version: `{CURRENT}` → `{NEW}` ({increment_type} bump)
-- Commit message
+- Changelog entry (formatted):
+  ```
+  {CHANGELOG_ENTRY}
+  ```
+- Commit message:
+  ```
+  {COMMIT_MESSAGE}
+  ```
 
 **Options:**
 
@@ -139,11 +223,44 @@ Include in description:
 
 ### Release Mode
 
-Run the update script:
+1. **Update CHANGELOG.md:**
 
-```bash
-"{ROBOOSTER_CLAUDE_DIR}/scripts/update-plugin.sh" "{NEW_VERSION}" "{COMMIT_MESSAGE}" "{ROBOOSTER_CLAUDE_DIR}" "{ORIGINAL_CWD}"
-```
+   Read `{ROBOOSTER_CLAUDE_DIR}/CHANGELOG.md`
+
+   Find the line containing `# Changelog`
+
+   Insert `CHANGELOG_ENTRY` immediately after that line (with a blank line separator)
+
+   Write the updated content back to the file
+
+   **Example before:**
+   ```markdown
+   # Changelog
+
+   ## 2.2.0 — 2026-02-02
+   ...
+   ```
+
+   **Example after:**
+   ```markdown
+   # Changelog
+
+   ## 2.2.1 — 2026-02-03
+
+   **Fixed**
+   - Corrected prompt wording in brainstorming skill
+
+   ## 2.2.0 — 2026-02-02
+   ...
+   ```
+
+2. **Run the update script:**
+
+   ```bash
+   "{ROBOOSTER_CLAUDE_DIR}/scripts/update-plugin.sh" "{NEW_VERSION}" "{COMMIT_MESSAGE}" "{ROBOOSTER_CLAUDE_DIR}" "{ORIGINAL_CWD}"
+   ```
+
+   The script's `git add -A` automatically stages the updated CHANGELOG.md.
 
 ### Sync Mode
 
@@ -169,7 +286,11 @@ The script outputs JSON:
 >
 > **Version:** `{CURRENT}` → `{NEW}`
 >
+> **Changelog:**
+> {CHANGELOG_ENTRY}
+>
 > **Actions completed:**
+> - CHANGELOG.md updated
 > - Version updated in plugin.json and marketplace.json
 > - Changes committed and pushed to origin/main
 > - Local marketplace updated: ✓/✗
