@@ -222,6 +222,12 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - Dependencies between flows determine ordering
    - A task should be implementable in one Claude Code session
 
+   **Ordering constraint:**
+   - Perform topological sort on tasks based on dependencies
+   - Task N may ONLY depend on Tasks 1 through N-1
+   - Tasks with no dependencies get lowest numbers
+   - When multiple valid orderings exist, prefer grouping related work
+
    Implementation detail heuristics:
    - If concept has pseudocode for this task's logic → include or reference §8
    - If concept has data structure definitions → include types and example
@@ -229,6 +235,8 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - Goal: Each task implementable WITHOUT returning to concept document
 
 2. **Present proposed tasks:**
+
+   Before presenting, validate that no task depends on a higher-numbered task. If violated, renumber.
 
    > ## Proposed Tasks
    >
