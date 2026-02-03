@@ -71,11 +71,31 @@ This agent detects issues; test-writer or skill fixes them. Your job is to run a
 
 **3. Mutation Testing**
 
-- Select mutation tool appropriate for the language
-- Run mutation testing against implementation files
-- Calculate mutation score (killed / total mutants)
-- Analyze surviving mutants to identify coverage gaps
-- List most significant surviving mutants
+Handle based on `Mutation Scope` from input:
+
+**If scope is `none`:**
+- Skip mutation testing entirely
+- Report mutation score as "Skipped" in summary
+- Proceed to Step 4
+
+**If scope is `new` or `all`:**
+
+1. Detect language from implementation file extensions
+2. Execute appropriate tool based on scope:
+
+| Language | Detect By | `all` Command | `new` Command |
+|----------|-----------|---------------|---------------|
+| C# | `.cs` | `dotnet stryker` | `dotnet stryker --mutate "{file1}" --mutate "{file2}" ...` |
+| Python | `.py` | `mutmut run` | `mutmut run --paths-to-mutate="{file1},{file2},..."` |
+| JS/TS | `.js`/`.ts` | `npx stryker run` | `npx stryker run --mutate "{glob-pattern}"` |
+
+3. Calculate mutation score (killed / total mutants)
+4. Analyze surviving mutants to identify coverage gaps
+5. List most significant surviving mutants
+
+**Python notes:**
+- Requires mutmut 2.x (`>=2.0.0,<3.0.0`) for `--paths-to-mutate` CLI support
+- File paths are comma-separated without spaces
 
 **4. Coverage Analysis**
 
@@ -110,6 +130,7 @@ When invoked by task-implementing skill (Phase 5), expect these inputs:
 | Implementation files | Phase 4 | List of implementation file paths tested |
 | Targets | Skill prompt | Mutation score and coverage thresholds |
 | Required test type | Skill prompt | Expected test type from spec (if specified) |
+| Mutation scope | Skill prompt | `all`, `new`, or `none` (default: `new`) |
 
 ---
 
@@ -214,11 +235,13 @@ Return findings in this structure:
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
-| Mutation Score | {score}% | >80% | PASS/WARN/FAIL |
+| Mutation Score | {score}% or Skipped | >80% | PASS/WARN/FAIL/SKIP |
 | Branch Coverage | {coverage}% | >70% | PASS/WARN/FAIL |
 | Critical Red Flags | {count} | 0 | PASS/FAIL |
 | High Red Flags | {count} | <3 | PASS/WARN |
 | Test Type Match | {Unit/Integration/etc.} | {required type} | PASS/WARN |
+
+*If mutation scope is `none`, report "Skipped" and status "SKIP" (does not affect verdict).*
 
 **Overall Verdict:** PASS / WARN / FAIL
 

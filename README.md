@@ -214,6 +214,33 @@ After testing, reinstall from marketplace.
 - kb-maintainer
 - task-manager
 
+### Mutation Testing Configuration
+
+The `task-implementing` skill uses mutation testing via `test-verifier` agent. Projects must have the appropriate tools configured:
+
+| Language | Tool | Install | Version Constraint |
+|----------|------|---------|-------------------|
+| C# | Stryker.NET | `dotnet tool install -g dotnet-stryker` | Latest |
+| Python | mutmut | Add to dev deps in `pyproject.toml` | `>=2.0.0,<3.0.0` |
+| JS/TS | Stryker | `npm install -g @stryker-mutator/core` | Latest |
+
+**Python projects:** Must use mutmut 2.x (not 3.x) because 3.x removed the `--paths-to-mutate` CLI flag needed for scoped mutation testing.
+
+Example `pyproject.toml` for Python:
+```toml
+[tool.uv]
+dev-dependencies = [
+    "mutmut>=2.0.0,<3.0.0",
+]
+
+[tool.mutmut]
+paths_to_mutate = "src/"
+tests_dir = "tests/"
+runner = "python -m pytest -x --tb=short"
+```
+
+**Usage:** `/task-implementing --muttests={all|new|none}` (default: `new`)
+
 ### Hooks
 
 - **KB Auto-Sync** - Automatically commits and pushes KB files after edits

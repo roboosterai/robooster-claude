@@ -59,6 +59,10 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - `--spec= @{path}` or `--spec={path}` — Feature Spec file path. Note the space before `@` — required for autocomplete to work. Strip leading `@` and `./` from path when parsing.
    - `--task={N}` — Task number to implement
    - `--review= @{path}` or `--review={path}` — Review findings file (optional). Same parsing rules.
+   - `--muttests={all|new|none}` — Mutation testing scope (default: `new`)
+     - `all`: Full codebase mutation testing
+     - `new`: Scope to implementation files only (recommended)
+     - `none`: Skip mutation testing entirely
    - If not provided, will prompt in Phase 2
 
 5. **Confirm to user:**
@@ -339,8 +343,10 @@ Task(
            Implementation Files:
            {list of implementation files}
 
+           Mutation Scope: {muttests value: all/new/none}
+
            Targets:
-           - Mutation score: >80%
+           - Mutation score: >80% (if mutation testing enabled)
            - Branch coverage: >70%
            - Red flag detection
 
@@ -695,3 +701,13 @@ Present summary with results:
 /task-implementing --spec=kb/specs/20260127-spec-webhook-system.md --task=3
 ```
 (Path without `@` also works)
+
+```
+/task-implementing --spec=... --task=6 --muttests=none
+```
+(Skip mutation testing for rapid iteration)
+
+```
+/task-implementing --spec=... --task=6 --muttests=all
+```
+(Full mutation testing for final verification)
