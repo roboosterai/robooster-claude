@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.3 — 2026-02-03
+
+**Changed**
+- task-implementing skill now displays detailed ac-verifier output with verification summary, detailed results table, and evidence for each acceptance criterion
+
 ## 2.2.2 — 2026-02-03
 
 **Added**

@@ -385,6 +385,26 @@ Task(
 )
 ```
 
+**Display ac-verifier results to user:**
+
+After ac-verifier completes, always show the full verification output:
+
+> ## Acceptance Criteria Verification
+>
+> {Copy the Verification Summary table from ac-verifier output}
+>
+> ### Detailed Results
+>
+> | # | Acceptance Criterion | Status | Evidence |
+> |---|---------------------|--------|----------|
+> | {Copy all rows from ac-verifier Detailed Results table} |
+>
+> {If any PARTIAL or FAIL, include the "Not Met Criteria" section with full details}
+>
+> {If tests were run, include "Behavior Verification" section with commands and output}
+
+This ensures the user sees exactly what was verified and how.
+
 **Interpret results:**
 
 - **PASS:** All ACs verified with evidence → Proceed to Step 4
