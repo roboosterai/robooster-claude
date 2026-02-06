@@ -426,8 +426,8 @@ Task(
            Focus on: unnecessary complexity, code duplication,
            readability issues, overly clever code.
 
-           Files:
-           {list of all created/modified files}",
+           Files (production code only — test files excluded, covered by test-verifier):
+           {list of created/modified implementation files, excluding test files}",
   description: "Review for simplicity"
 )
 ```
@@ -439,8 +439,8 @@ Task(
            Focus on: logic errors, edge cases, null handling,
            error paths, race conditions.
 
-           Files:
-           {list of all created/modified files}",
+           Files (production code only — test files excluded, covered by test-verifier):
+           {list of created/modified implementation files, excluding test files}",
   description: "Review for bugs"
 )
 ```
@@ -452,8 +452,8 @@ Task(
            Focus on: naming conventions, architecture patterns,
            proper use of existing abstractions, consistency.
 
-           Files:
-           {list of all created/modified files}",
+           Files (production code only — test files excluded, covered by test-verifier):
+           {list of created/modified implementation files, excluding test files}",
   description: "Review for conventions"
 )
 ```

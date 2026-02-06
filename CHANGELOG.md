@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.1 — 2026-02-06
+
+**Changed**
+- Code reviewer agents receive only implementation files, excluding test files already validated by test-verifier
+
 ## 2.3.0 — 2026-02-06
 
 **Added**
