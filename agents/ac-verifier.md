@@ -1,7 +1,7 @@
 ---
 name: ac-verifier
 description: "Verifies implementation against acceptance criteria with code-level evidence. Trusts only codebase and AC - runs tools and tests independently."
-model: opus
+model: sonnet
 tools: Glob, Grep, Read, Bash
 color: green
 ---
@@ -178,6 +178,7 @@ When invoked by task-implementing skill, expect these inputs:
 - **Independent verification** — Do not trust claims from prompt; verify everything
 - **Bash: build and test only** — Only run build/test commands, not modification commands
 - **Objective** — Report what the code shows, not what it should show
+- **Output budget** — Keep total return under 1500 tokens. Prioritize structured tables and findings over prose. If findings exceed budget, include only Critical/High severity items with file:line references.
 
 ---
 

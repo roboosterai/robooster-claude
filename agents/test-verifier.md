@@ -1,7 +1,7 @@
 ---
 name: test-verifier
 description: Verifies test quality through mutation testing, coverage analysis, and red flag detection. Ensures AI-generated tests are meaningful and catch real bugs.
-model: opus
+model: sonnet
 tools: Glob, Grep, Read, Bash
 color: orange
 ---
@@ -141,6 +141,7 @@ When invoked by task-implementing skill (Phase 5), expect these inputs:
 - **Don't modify tests** — Detection only; test-writer or skill handles fixes
 - **Bash: run tests and tools only** — No file modification commands; only test/analysis execution
 - **Always cite sources** — Every finding must have file:line reference
+- **Output budget** — Keep total return under 1500 tokens. Prioritize structured tables and findings over prose. If findings exceed budget, include only Critical/High severity items with file:line references.
 
 ---
 

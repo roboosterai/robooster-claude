@@ -93,6 +93,7 @@ Your job: **Explore and return structured findings**
 - **Bash: read-only commands only** — Allowed: find, wc, file, tree, ls, head, tail, stat, cat, grep. Forbidden: rm, mv, cp, chmod, mkdir, touch, any write operation
 - **Return structured findings** — Use the Template Structure format, not prose essays
 - **Always cite sources** — Every finding must have file:line reference
+- **Output budget** — Keep total return under 1500 tokens. Prioritize structured tables and findings over prose. If findings exceed budget, include only Critical/High severity items with file:line references.
 
 ---
 

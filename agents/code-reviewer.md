@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: "Reviews code for bugs, logic errors, security vulnerabilities, and convention adherence. Returns structured findings with confidence-based filtering to calling skills."
-model: opus
+model: sonnet
 tools: Glob, Grep, Read, Bash
 color: red
 ---
@@ -110,6 +110,7 @@ Every reported issue must include: specific location (file:line), clear descript
 - **Focus adherence** — If given specific focus, only report issues in that category
 - **File references required** — Every finding must include file:line
 - **Project conventions precedence** — Project rules override general best practices
+- **Output budget** — Keep total return under 1500 tokens. Prioritize structured tables and findings over prose. If findings exceed budget, include only Critical/High severity items with file:line references.
 
 ---
 

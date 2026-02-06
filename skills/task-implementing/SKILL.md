@@ -74,6 +74,8 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Proceed when:** Date and project context established
 
+Write initial checkpoint.
+
 → Proceed to Phase 2
 
 ---
@@ -180,6 +182,8 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Proceed when:** User confirms understanding
 
+Update checkpoint with extracted context (AC, key files, commands).
+
 → Proceed to Phase 3
 
 ---
@@ -231,6 +235,8 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Proceed when:** User approves plan and Tasks are created
 
+Update checkpoint: Phase 3 complete.
+
 → Proceed to Phase 4
 
 ---
@@ -252,17 +258,19 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 2. **Run build command** from spec's Codebase Context:
    ```bash
-   {build command from spec}
+   {build command from spec} 2>&1 | tail -100
    ```
    Fix any build errors before proceeding.
 
 3. **Run test command** from spec's Codebase Context:
    ```bash
-   {test command from spec}
+   {test command from spec} 2>&1 | tail -100
    ```
    Fix any test failures before proceeding.
 
 **Proceed when:** Implementation complete, build passes, existing tests pass
+
+Update checkpoint: Phase 4 complete, list files changed.
 
 → Proceed to Phase 5
 
@@ -385,25 +393,14 @@ Task(
 )
 ```
 
-**Display ac-verifier results to user:**
+**Display ac-verifier results to user (summary only):**
 
-After ac-verifier completes, always show the full verification output:
+After ac-verifier completes, show a condensed summary — do NOT copy the full output:
 
-> ## Acceptance Criteria Verification
+> **AC Verification: {PASS/PARTIAL/FAIL}** — {N}/{total} criteria met
 >
-> {Copy the Verification Summary table from ac-verifier output}
->
-> ### Detailed Results
->
-> | # | Acceptance Criterion | Status | Evidence |
-> |---|---------------------|--------|----------|
-> | {Copy all rows from ac-verifier Detailed Results table} |
->
-> {If any PARTIAL or FAIL, include the "Not Met Criteria" section with full details}
->
-> {If tests were run, include "Behavior Verification" section with commands and output}
-
-This ensures the user sees exactly what was verified and how.
+> {Only if PARTIAL or FAIL, list failed/partial ACs:}
+> - AC#{N}: {criterion} — {one-line reason}
 
 **Interpret results:**
 
@@ -469,7 +466,26 @@ Task(
    - Run build and test commands to verify fixes don't break anything
    - Increment iteration counter
    - **If ac-verifier was not PASS:** Re-run ac-verifier only (not full cycle) to confirm fixes
-   - Loop back to Step 1 (re-run full cycle: tests may need updating after fixes)
+   - After fixing, emit a condensed iteration summary before the next round:
+
+     > **Iteration {N} Summary:**
+     > - test-verifier: {mutation score}%, {verdict}
+     > - ac-verifier: {N}/{total} PASS, {verdict}
+     > - Reviewers: {total findings} found, {fixed} fixed, {remaining} remaining
+     > - Fixed: {brief list of what was changed}
+     > - Remaining: {brief list of open issues}
+
+   Update checkpoint with iteration results and current step.
+
+   **Smart re-run on iteration 2+ (skip clean agents):**
+
+   When looping back, only re-run agents that had findings or are affected by fixes:
+   - **test-writer:** Re-run only if test-verifier was WARN/FAIL or if implementation files changed
+   - **test-verifier:** Re-run only if test-writer ran (new/updated tests to verify)
+   - **ac-verifier:** Always re-run (verifies fixes resolved AC gaps)
+   - **code-reviewers:** Skip if all 3 had 0 findings in previous round; otherwise re-run only reviewers that had findings
+
+   - Loop back to Step 1 (re-run cycle per smart re-run rules above)
 3. **If no findings OR iteration >= 3:**
    - Present results summary to user
 
@@ -673,6 +689,8 @@ Present summary with results:
    > ### Next Task
    > To continue: `/task-implementing --spec={spec path} --task={N+1}`
 
+Delete checkpoint: `rm -f .claude/skill-checkpoint.md`
+
 **Session complete.**
 
 ---
@@ -684,6 +702,52 @@ Present summary with results:
 | G1 | Phase 2 | "Understanding confirmed?" | Continue | Clarify gaps |
 | G2 | Phase 3 | "Plan approved?" | Continue | Iterate plan |
 | G3 | Phase 5 | "Quality acceptable?" | Continue | Fix remaining |
+
+---
+
+## Checkpoint-Resume
+
+The skill writes a checkpoint file at each phase transition to survive context compacting.
+
+**File path:** `$CLAUDE_PROJECT_DIR/.claude/skill-checkpoint.md` (use the project root `.claude/` directory)
+
+**When to write:** After completing each phase (before proceeding to the next), and after each Phase 5 iteration.
+
+**When to delete:** At the end of Phase 6 (session complete): `rm -f .claude/skill-checkpoint.md`
+
+**Checkpoint template:**
+
+    # Skill Checkpoint: task-implementing
+
+    **Resume instruction:** You are mid-execution of the task-implementing skill.
+    Read the full skill at: robooster-claude/skills/task-implementing/SKILL.md
+    Then continue from the phase/step below.
+
+    ## State
+    - Phase: {N} — {phase name} ({step detail if in Phase 5})
+    - Spec: {spec path}
+    - Task: {N} — {task name}
+    - Project: {project name} (KB: {KB_ROOT})
+    - Date: {session date}
+
+    ## Context
+    - AC: {numbered list, one line each}
+    - Key files: {comma-separated list}
+    - Build: {build command}
+    - Test: {test command}
+    - Mutation scope: {all/new/none}
+
+    ## Progress
+    - {Phase 1}: ✅
+    - {Phase 2}: ✅
+    - {Phase 3}: ✅
+    - {Phase 4}: {✅ or current step}
+    - {Phase 5}: {iteration N, step detail}
+    - {Phase 6}: pending
+
+    ## Decisions & Deviations
+    - {Any decisions made during implementation}
+    - {Any deviations from spec}
 
 ---
 
@@ -702,6 +766,8 @@ Present summary with results:
 11. **Tasks for implementation steps, not acceptance criteria** — Create Tasks from the implementation plan (file-by-file changes). Do NOT create Tasks from acceptance criteria (they get prematurely marked complete and don't map 1:1 to implementation steps). Track acceptance criteria in the handoff document.
 12. **Programmatic plan mode** — Call `EnterPlanMode` directly; never ask user to press Shift+Tab
 13. **Create Tasks after plan approval** — Phase 3 must create Tasks from the approved implementation plan before proceeding to Phase 4. This ensures implementation steps survive context compacting.
+14. **Checkpoint at every phase transition** — Write/update `.claude/skill-checkpoint.md` after each phase completes. Delete it at end of Phase 6.
+15. **Smart re-runs on iteration 2+** — Only re-invoke agents that had findings or are affected by fixes. Always re-run ac-verifier.
 
 ---
 

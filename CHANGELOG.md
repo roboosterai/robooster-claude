@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.0 — 2026-02-06
+
+**Added**
+- Checkpoint-resume mechanism to survive context compacting in task-implementing skill
+- resume-checkpoint.sh hook script for automatic state recovery after compacting
+- SessionStart hook for compact event detection
+- Iteration summary output between Phase 5 review rounds
+- Smart agent re-run logic to skip clean agents on iteration 2+
+
+**Changed**
+- Switched code-reviewer, test-verifier, ac-verifier agents from opus to sonnet model
+- Added 1500-token output budget constraint to 6 agents
+- AC verification now displays condensed summary instead of full output
+- Build/test command outputs truncated to last 100 lines
+
 ## 2.2.3 — 2026-02-03
 
 **Changed**

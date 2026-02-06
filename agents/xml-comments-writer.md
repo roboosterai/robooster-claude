@@ -167,6 +167,7 @@ public enum EntryType
 - **Public/protected members only** — Don't document private members unless lint requires it
 - **Process only listed files** — Do not explore beyond the files in the prompt
 - **Follow guide patterns** — Use exact patterns from xml-documentation.md
+- **Output budget** — Keep total return under 1500 tokens. Prioritize structured tables and findings over prose. If findings exceed budget, include only Critical/High severity items with file:line references.
 
 ---
 

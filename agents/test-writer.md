@@ -129,6 +129,7 @@ When invoked by task-implementing skill (Phase 5), expect these inputs:
 - **Meaningful scenarios** — Every test must be able to fail for a real bug. No `assertTrue(true)`.
 - **Match project patterns** — Use existing test framework, naming conventions, and file structure.
 - **No implementation modification** — Write tests only; never modify the code being tested.
+- **Output budget** — Keep total return under 1500 tokens. Prioritize structured tables and findings over prose. If findings exceed budget, include only Critical/High severity items with file:line references.
 
 ---
 
