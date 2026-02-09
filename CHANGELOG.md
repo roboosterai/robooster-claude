@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.3 — 2026-02-09
+
+**Added**
+- CWD and cat debug probes in concept-writing skill to validate template injection
+- Template placeholder file for Phase 1 DRY experiment
+
 ## 2.3.2 — 2026-02-09
 
 **Changed**
