@@ -22,9 +22,6 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 1. **Session date:** !`date +%Y-%m-%d`
 
-> **DEBUG — CWD probe:** !`pwd`
-> **DEBUG — cat probe:** !`cat ../templates/template-phase-1.md 2>&1`
-
 2. **Determine project context using AskUserQuestion:**
 
    **Question:** "Which project is this work for?"
