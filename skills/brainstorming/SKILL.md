@@ -32,11 +32,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Actions:**
 
-1. **Get current date:**
-
-   ```bash
-   date +%Y-%m-%d
-   ```
+1. **Session date:** !`date +%Y-%m-%d`
 
 2. **Determine project context using AskUserQuestion:**
 

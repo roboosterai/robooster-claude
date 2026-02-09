@@ -31,11 +31,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Actions:**
 
-1. **Get current date:**
-
-   ```bash
-   date +%Y-%m-%d
-   ```
+1. **Session date:** !`date +%Y-%m-%d`
 
 2. **Check for inherited project context:**
    - If args contain `--project={value}`, use that value and skip to step 4

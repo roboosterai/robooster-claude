@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.2 — 2026-02-09
+
+**Changed**
+- Use inject-dynamic-context for session date in all 5 document-producing skills
+
 ## 2.3.1 — 2026-02-06
 
 **Changed**
