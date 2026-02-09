@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.0 — 2026-02-09
+
+**Added**
+- concept-reviewing skill for guided iteration over concept documents
+
 ## 2.3.4 — 2026-02-09
 
 **Removed**
