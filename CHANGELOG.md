@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.1 — 2026-02-09
+
+**Changed**
+- Simplified concept-reviewing skill: removed EnterPlanMode/ExitPlanMode ceremony, auto-decide codebase exploration, single-pass verification
+- Added "no code changes" boundary rule to concept-reviewing
+
 ## 2.4.0 — 2026-02-09
 
 **Added**

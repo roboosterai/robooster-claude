@@ -13,7 +13,6 @@ Run one focused iteration over a concept document. The user provides a file and 
 - **One iteration per invocation** — Do one thing well, not everything at once
 - **User steers, skill executes** — The iteration prompt defines the focus
 - **Verify after every edit** — Changes must not break document consistency
-- **Ask, don't assume** — Use AskUserQuestion for all interaction
 - **One question per message** — Keep interactions focused
 
 ---
@@ -72,22 +71,13 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    - **Dependencies** — other sections that reference or depend on the affected ones
    - **Gaps or inconsistencies** — issues the iteration prompt exposes (or that you notice independently)
 
-2. **Optional: codebase exploration.**
+2. **Codebase exploration (auto-decide).**
 
-   If the iteration prompt involves verifying against actual code, checking implementation feasibility, or understanding existing patterns:
+   Judge whether the iteration prompt needs codebase context:
+   - **Explore** if the prompt involves code verification, implementation feasibility, checking existing patterns, or references specific files/modules
+   - **Skip** if the prompt is purely about document structure, wording, flow, or conceptual reasoning
 
-   **Ask user using AskUserQuestion:**
-
-   **Question:** "This iteration touches technical details. Would codebase exploration help?"
-
-   **Options:**
-
-   | Option | Description |
-   |--------|-------------|
-   | **Yes — explore codebase** | Spawn code-explorer agent to verify against actual code |
-   | **No — proceed with document only** | Enough context from the document itself |
-
-   If yes:
+   When exploring:
    ```
    Task(
      subagent_type: "robooster-claude:code-explorer",
@@ -143,11 +133,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Actions:**
 
-1. **Enter Plan Mode programmatically:**
-
-   Call `EnterPlanMode` to switch into planning mode. Do NOT ask the user to press Shift+Tab.
-
-2. **In Plan Mode, write a change plan:**
+1. **Write a change plan:**
 
    For each change, specify:
    - **Section** — which section is being modified
@@ -177,9 +163,16 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
    Keep the plan concise. This is a document edit, not a codebase refactor.
 
-3. **Gate G2:** Call `ExitPlanMode` to present the plan for user approval.
+2. **Gate G2:** Present the change plan to the user, then ask for approval via `AskUserQuestion`:
 
-4. **After approval, execute edits:**
+   **Question:** "Approve this change plan?"
+
+   | Option | Description |
+   |--------|-------------|
+   | **Approve — execute edits** | Plan is good, proceed with editing |
+   | **Revise plan** | Adjust the plan before executing |
+
+3. **After approval, execute edits:**
 
    - Work through changes in plan order using the Edit tool
    - After all planned changes, apply consistency updates (cross-references, terminology)
@@ -195,21 +188,7 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 **Goal:** Independently verify the edited document is internally consistent
 
-**This phase runs as an iteration loop (max 3 rounds).**
-
-```
-┌─→ Re-read full document → Run consistency checklist ─┐
-│                                                       │
-│   issues found?                                       │
-│     yes (minor) → fix inline → increment counter ────→┘
-│     yes (substantial) → report to user → Gate G3      │
-│     no  → Gate G3: "Changes verified"                 │
-│                                                       │
-│   counter >= 3 → report remaining → Gate G3           │
-└───────────────────────────────────────────────────────┘
-```
-
-**Actions per iteration:**
+**Actions:**
 
 1. **Re-read the entire document** from disk (not from memory — the Edit tool may have changed it).
 
@@ -226,12 +205,10 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    | **Completeness** | Did the changes fully address the iteration prompt? Any loose ends? |
 
 3. **Classify findings:**
-   - **Minor** — typos, small cross-reference fixes, missing updates to a term. Fix these inline without asking.
+   - **Minor** — typos, small cross-reference fixes, missing updates to a term. Fix these inline in one pass without asking.
    - **Substantial** — logical inconsistencies, missing sections, design contradictions. Report these to the user.
 
-4. **If minor fixes were made**, increment counter and loop back to step 1 (re-verify).
-
-5. **If substantial issues found OR no issues found OR counter >= 3**, proceed to Gate G3.
+4. **Proceed to Gate G3.**
 
 #### Gate G3
 
@@ -291,23 +268,24 @@ Present verification results:
 | Gate | Phase | Question | Pass | Fail |
 |------|-------|----------|------|------|
 | G1 | Phase 2 | "Analysis correct?" | Plan changes | Adjust focus |
-| G2 | Phase 3 | "Plan approved?" (via ExitPlanMode) | Execute edits | Iterate plan |
+| G2 | Phase 3 | "Approve this change plan?" (via AskUserQuestion) | Execute edits | Revise plan |
 | G3 | Phase 4 | "Iteration complete?" | Finish / Fix / New iteration | Loop back |
 
 ---
 
 ## Rules
 
-1. **No new files** — This skill edits an existing concept document, never creates new ones
+1. **Document only — no code changes** — This skill edits the concept document and nothing else. Never modify source code, config files, or any file outside the target document during a reviewing session
+2. **No new files** — This skill edits an existing concept document, never creates new ones
 2. **Preserve document voice** — Match the writing style of the existing document
 3. **Minimize blast radius** — Change only what the iteration prompt requires plus consistency fixes
 4. **Frontmatter updates** — Always update `updated` and `modified_by` fields
 5. **One question per message** — Keep interactions focused
-6. **Respect all three gates** — Do not skip human approval checkpoints
+6. **Respect both gates** — G1 and G3 are explicit gates; G2 is a regular AskUserQuestion approval
 7. **Verify after every edit** — Phase 4 is not optional
-8. **Programmatic plan mode** — Call `EnterPlanMode` directly; never ask user to press Shift+Tab
-9. **Re-read from disk** — In Phase 4, always re-read the file, don't rely on memory of edits
-10. **Max 3 verification loops** — Prevent infinite iteration; surface remaining issues and finish
+8. **Re-read from disk** — In Phase 4, always re-read the file, don't rely on memory of edits
+9. **Max 3 returns to Phase 3** — Prevent infinite iteration; surface remaining issues and finish
+10. **Frontmatter edge case** — If frontmatter is absent, add `updated` and `modified_by` fields without restructuring the file
 
 ---
 
