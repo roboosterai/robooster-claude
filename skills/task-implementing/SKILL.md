@@ -559,6 +559,60 @@ Present summary with results:
 >
 > **XML Documentation:** {Clean / N errors remaining / N/A}
 
+**Bug Registration (unresolved code-review findings):**
+
+If code-review findings remain unresolved (Findings remaining > 0 in Quality Summary):
+
+1. **Present unresolved findings with registration proposal:**
+
+   > ### Unresolved Code-Review Findings
+   >
+   > These findings were not resolved during quality iterations.
+   > They can be registered as bug reports for future tracking.
+   >
+   > | # | File | Line | Description |
+   > |---|------|------|-------------|
+   > | 1 | {file} | {line} | {description} |
+   >
+   > **Question:** "Register unresolved findings as bug reports?"
+   >
+   > | Option | Description |
+   > |--------|-------------|
+   > | **Register all** | Register all findings as bug reports |
+   > | **Select specific** | Choose which findings to register |
+   > | **Skip** | Do not register any bug reports |
+
+2. **If user selects "Register all" or "Select specific":**
+
+   Invoke bug-reporter agents **in parallel** (one per finding):
+
+   ```
+   Task(
+     subagent_type: "robooster-claude:bug-reporter",
+     prompt: "Register a bug report.
+
+              kb_root: {KB_ROOT}
+              description: {finding description from code-reviewer}
+              location: {file}:{line}
+              source: code-review
+              found_during: {spec path relative to KB_ROOT}#task-{N}
+              additional_context: Found by {reviewer focus} reviewer.
+                                 Confidence: {score}. Suggested fix: {fix}.",
+     description: "Register bug: {brief}"
+   )
+   ```
+
+3. **Show results:**
+
+   > ### Bug Registration Results
+   > | # | Result | File | Title |
+   > |---|--------|------|-------|
+   > | 1 | NEW | `{path}` | {title} |
+   >
+   > Registered {N} bug report(s): {new} new, {existing} existing.
+
+4. **If no remaining findings:** Skip bug registration entirely.
+
 **Proceed when:** User approves quality
 
 → Proceed to Phase 6
@@ -764,6 +818,7 @@ The skill writes a checkpoint file at each phase transition to survive context c
 13. **Create Tasks after plan approval** — Phase 3 must create Tasks from the approved implementation plan before proceeding to Phase 4. This ensures implementation steps survive context compacting.
 14. **Checkpoint at every phase transition** — Write/update `.claude/skill-checkpoint.md` after each phase completes. Delete it at end of Phase 6.
 15. **Smart re-runs on iteration 2+** — Only re-invoke agents that had findings or are affected by fixes. Always re-run ac-verifier.
+16. **Bug registration at G3** — Unresolved code-review findings are offered for bug registration at Gate G3. Bug-reporter agents run in parallel, one per finding.
 
 ---
 

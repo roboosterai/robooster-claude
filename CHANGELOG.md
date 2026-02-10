@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.0 — 2026-02-10
+
+**Added**
+- bug-reporter agent for registering bugs as KB markdown files
+- Bug registration flow at Gate G3 in task-implementing for unresolved code-review findings
+
 ## 2.5.0 — 2026-02-10
 
 **Added**
