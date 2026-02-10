@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.0 — 2026-02-10
+
+**Added**
+- spec-reviewing skill for guided iteration over feature spec documents
+
 ## 2.4.1 — 2026-02-09
 
 **Changed**
