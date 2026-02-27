@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.6.2 — 2026-02-27
+
+**Changed**
+- Reordered transaction-investigating workflow: logs queried first, DB only when needed
+- Simplified Phase 4 (Synthesize) with chronological events table as primary output
+
+**Added**
+- Database Schema Reference with verified column names for all 9 tables
+- Chronological events table format with source labels and inline key data
+- SourceId as secondary lookup path for ledger_transactions
+
+**Fixed**
+- SQL queries using wrong column names: refund_status, refund_error_code, refund_error_message, dispute_status, AccountName, BalanceAfter
+- Removed non-existent columns: connector on payouts, Status on ledger_transactions, MerchantId/Status/TotalAmount/WirePayoutId on allocation_batches
+
 ## 2.6.1 — 2026-02-27
 
 **Added**

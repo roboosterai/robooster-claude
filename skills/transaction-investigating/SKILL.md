@@ -6,17 +6,195 @@ user-invocable: true
 
 # Transaction Investigation
 
-Investigate any Platro/Hyperswitch transaction end-to-end. Queries both databases (hyperswitch_db + platro_services_db), all OpenSearch log indices, local log files, follows cross-entity relationships, interprets errors adaptively, and produces a structured diagnostic report.
+Investigate any Platro/Hyperswitch transaction end-to-end. Queries logs first, then databases only when needed. Follows cross-entity relationships, interprets errors adaptively, and produces a structured diagnostic report with a chronological events table.
 
 ---
 
 ## Core Principles
 
+- **Logs first** — Always start with logs (OpenSearch or local files); they tell the full event story
 - **Adaptive** — Follow up on findings dynamically; don't just dump raw data
-- **Cross-source** — Correlate DB state, log events, and ledger entries to build a complete picture
+- **Cross-source** — Correlate log events, DB state, and ledger entries to build a complete picture
 - **Interpreted** — Explain what happened and why, not just what the data says
 - **Minimal friction** — Auto-detect entity type from ID prefix, default to today's date
 - **Safe** — Read-only queries; never modify any data
+
+---
+
+## Database Schema Reference
+
+Exact column names for SQL queries. Using wrong names causes silent failures.
+
+### hyperswitch_db (snake_case — no quoting needed)
+
+**`payouts`** — NOTE: No `connector` column here; connector is on `payout_attempt`
+
+| Key Columns | Type |
+|-------------|------|
+| `payout_id` | varchar PK |
+| `merchant_id` | varchar PK |
+| `status` | enum |
+| `amount` | int8 |
+| `destination_currency` | enum |
+| `source_currency` | enum |
+| `payout_type` | enum |
+| `attempt_count` | int2 |
+| `profile_id` | varchar |
+| `created_at` | timestamp |
+| `last_modified_at` | timestamp |
+
+**`payout_attempt`** — Has the connector info
+
+| Key Columns | Type |
+|-------------|------|
+| `payout_attempt_id` | varchar PK |
+| `payout_id` | varchar FK |
+| `merchant_id` | varchar PK |
+| `connector` | varchar |
+| `connector_payout_id` | varchar |
+| `status` | enum |
+| `error_code` | varchar |
+| `error_message` | text |
+| `created_at` | timestamp |
+| `last_modified_at` | timestamp |
+
+**`payment_intent`**
+
+| Key Columns | Type |
+|-------------|------|
+| `payment_id` | varchar PK |
+| `merchant_id` | varchar PK |
+| `status` | enum |
+| `amount` | int8 |
+| `currency` | enum |
+| `active_attempt_id` | varchar |
+| `profile_id` | varchar |
+| `created_at` | timestamp |
+| `modified_at` | timestamp |
+
+**`payment_attempt`**
+
+| Key Columns | Type |
+|-------------|------|
+| `attempt_id` | varchar PK |
+| `payment_id` | varchar FK |
+| `merchant_id` | varchar PK |
+| `status` | enum |
+| `connector` | varchar |
+| `connector_transaction_id` | varchar |
+| `error_code` | varchar |
+| `error_message` | text |
+| `authentication_type` | enum |
+| `payment_method` | varchar |
+| `created_at` | timestamp |
+| `modified_at` | timestamp |
+
+**`refund`** — Column names differ from other tables!
+
+| Key Columns | Type | NOTE |
+|-------------|------|------|
+| `refund_id` | varchar PK | |
+| `payment_id` | varchar FK | |
+| `attempt_id` | varchar FK | |
+| `refund_status` | enum | NOT `status` |
+| `refund_amount` | int8 | |
+| `currency` | enum | |
+| `connector` | varchar | |
+| `connector_refund_id` | varchar | |
+| `refund_error_code` | text | NOT `error_code` |
+| `refund_error_message` | text | NOT `error_message` |
+| `created_at` | timestamp | |
+| `modified_at` | timestamp | |
+
+**`dispute`** — Status column has prefix!
+
+| Key Columns | Type | NOTE |
+|-------------|------|------|
+| `dispute_id` | varchar PK | |
+| `payment_id` | varchar FK | |
+| `attempt_id` | varchar FK | |
+| `dispute_status` | enum | NOT `status` |
+| `dispute_stage` | enum | |
+| `amount` | varchar | |
+| `currency` | varchar | |
+| `connector` | varchar | |
+| `connector_dispute_id` | varchar | |
+| `dispute_amount` | int8 | |
+| `created_at` | timestamp | |
+| `modified_at` | timestamp | |
+
+### platro_services_db (PascalCase — MUST double-quote)
+
+**`ledger_transactions`** — No `"Status"` column!
+
+| Column | Type |
+|--------|------|
+| `"Id"` | uuid PK |
+| `"Type"` | enum (PayIn, PayOut, Fee, Allocation, Wire, ...) |
+| `"SourceSystem"` | string |
+| `"SourceId"` | string (payment_id or payout_id) |
+| `"Description"` | string |
+| `"Metadata"` | jsonb |
+| `"PostedAt"` | timestamptz |
+| `"CreatedAt"` | timestamptz |
+
+Lookup by: `"Metadata"::text LIKE '%{entity_id}%'` OR `"SourceId" = '{entity_id}'`
+
+**`ledger_entries`**
+
+| Column | Type |
+|--------|------|
+| `"Id"` | uuid PK |
+| `"TransactionId"` | uuid FK |
+| `"AccountId"` | uuid FK |
+| `"Type"` | enum (Debit, Credit) |
+| `"Amount"` | int8 |
+| `"BalanceAfter"` | int8 |
+| `"PostedAt"` | timestamptz |
+| `"CreatedAt"` | timestamptz |
+| `"SourceReference"` | jsonb |
+| `"SettlementDay"` | date |
+
+Join with `ledger_accounts` on `"AccountId"` = `la."Id"` to get `la."AccountName"`, `la."NormalBalance"`
+
+**`ledger_accounts`** — Display name is `"AccountName"`, NOT `"Name"`
+
+| Column | Type |
+|--------|------|
+| `"Id"` | uuid PK |
+| `"AccountCode"` | string (party:entity:type) |
+| `"AccountName"` | string |
+| `"PartyType"` | enum (Psp, Platform, Merchant) |
+| `"EntityId"` | string |
+| `"AccountType"` | enum (Pending, Available, Balance, FeePayable, FeeRevenue, OnHold, Adjustment) |
+| `"NormalBalance"` | enum (Debit, Credit) |
+| `"Currency"` | string |
+
+**`allocation_batches`** — Minimal columns; no Status, TotalAmount, or WirePayoutId
+
+| Column | Type |
+|--------|------|
+| `"Id"` | uuid PK |
+| `"Type"` | enum (PspAllocation, MerchantAllocation) |
+| `"EntityCode"` | string |
+| `"PaymentIds"` | jsonb array |
+| `"LedgerTransactionId"` | uuid FK |
+| `"CreatedAt"` | timestamptz |
+
+**`payout_holds`**
+
+| Column | Type |
+|--------|------|
+| `"Id"` | uuid PK |
+| `"MerchantId"` | string |
+| `"Amount"` | int8 |
+| `"Currency"` | string |
+| `"PayoutId"` | string |
+| `"McaId"` | string |
+| `"Status"` | string (Held, Matched, Released, Expired) |
+| `"CreatedAt"` | timestamptz |
+| `"ExpiresAt"` | timestamptz |
+| `"MatchedAt"` | timestamptz |
 
 ---
 
@@ -78,9 +256,9 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
 
 5. **Verify connectivity (remote envs only):**
 
-   Run a quick test query to confirm the tunnel is up:
+   Test OpenSearch connectivity first (logs are queried first):
    ```bash
-   PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -c "SELECT 1;" 2>&1
+   opensearch-cli curl get --path "_cluster/health" --pretty --profile {env}
    ```
 
    If connection fails, tell the user:
@@ -104,120 +282,15 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
 
 ### Phase 2: Collect
 
-**Goal:** Gather raw data from all sources for the target entity
+**Goal:** Gather data from logs first, then databases only when needed
 
 Run all queries in this phase. Present a brief summary of findings after each section (not raw JSON dumps — summarize key fields inline).
 
-#### 2A: hyperswitch_db (snake_case — no quoting needed)
+#### 2A: Logs (always first)
 
-**For payments (`pay_*`):**
+Logs tell the full event story: creation, connector API calls, webhooks, errors, sync attempts. **Always query logs first.**
 
-```sql
--- payment_intent
-SELECT payment_id, status, amount, currency, merchant_id, active_attempt_id, created_at, modified_at
-FROM payment_intent WHERE payment_id = '{entity_id}';
-
--- payment_attempt (all attempts)
-SELECT attempt_id, payment_id, status, connector, connector_transaction_id,
-       error_code, error_message, authentication_type, payment_method,
-       created_at, modified_at
-FROM payment_attempt WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
-
--- refund (if any)
-SELECT refund_id, payment_id, attempt_id, status, refund_amount, currency,
-       connector, connector_refund_id, error_code, error_message,
-       created_at, updated_by
-FROM refund WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
-
--- dispute (if any)
-SELECT dispute_id, payment_id, attempt_id, status, amount, currency,
-       connector, connector_dispute_id, dispute_stage,
-       created_at, modified_at
-FROM dispute WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
-```
-
-**For payouts (`po_*`):**
-
-```sql
--- payouts
-SELECT payout_id, status, amount, destination_currency, merchant_id,
-       payout_type, connector, created_at, last_modified_at
-FROM payouts WHERE payout_id = '{entity_id}';
-
--- payout_attempt (all attempts)
-SELECT payout_attempt_id, payout_id, status, connector, connector_payout_id,
-       error_code, error_message, created_at, last_modified_at
-FROM payout_attempt WHERE payout_id = '{entity_id}' ORDER BY created_at ASC;
-```
-
-**Execution pattern (local):**
-```bash
-docker exec -i platro-pg-1 psql -U db_user -d hyperswitch_db -c "SELECT row_to_json(t) FROM ({query}) t;"
-```
-
-**Execution pattern (remote):**
-```bash
-PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
-```
-
-#### 2B: platro_services_db (PascalCase columns — MUST quote)
-
-**Ledger transactions matching entity:**
-
-```sql
--- Find ledger transactions via Metadata JSONB
-SELECT "Id", "Type", "Status", "Metadata", "CreatedAt"
-FROM ledger_transactions
-WHERE "Metadata"::text LIKE '%{entity_id}%'
-ORDER BY "CreatedAt" ASC;
-```
-
-**Ledger entries for found transactions:**
-
-```sql
--- For each transaction ID found above
-SELECT le."Id", le."TransactionId", la."Name" AS "AccountName", la."NormalBalance",
-       le."Type", le."Amount", le."CreatedAt"
-FROM ledger_entries le
-JOIN ledger_accounts la ON le."AccountId" = la."Id"
-WHERE le."TransactionId" = '{transaction_id}'
-ORDER BY le."CreatedAt" ASC;
-```
-
-**For payouts — payout holds:**
-
-```sql
-SELECT "Id", "PayoutId", "MerchantId", "Amount", "Status", "MatchedAt", "CreatedAt"
-FROM payout_holds
-WHERE "PayoutId" = '{entity_id}';
-```
-
-**For payments — allocation batches:**
-
-```sql
--- Allocation batches containing this payment (PaymentIds is a JSONB array)
-SELECT "Id", "MerchantId", "Status", "TotalAmount", "PaymentIds", "WirePayoutId", "CreatedAt"
-FROM allocation_batches
-WHERE "PaymentIds"::text LIKE '%{entity_id}%'
-ORDER BY "CreatedAt" DESC
-LIMIT 5;
-```
-
-**Execution pattern (local):**
-```bash
-docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c 'SELECT row_to_json(t) FROM ({query}) t;'
-```
-
-**Execution pattern (remote):**
-```bash
-PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d platro_services_db -t -A -c 'SELECT row_to_json(t) FROM ({query}) t;'
-```
-
-**CRITICAL:** PascalCase columns MUST be double-quoted. In shell commands for platro_services_db, use single quotes for the `-c` argument and escape inner single quotes with `'\''`.
-
-#### 2C: OpenSearch Logs (remote envs only)
-
-Query all 4 indices for the entity ID. Use today's date for index names.
+**Remote envs — OpenSearch (query all 4 indices in parallel):**
 
 **Server logs (event_logger, connector API, webhooks):**
 
@@ -257,7 +330,7 @@ opensearch-cli curl post \
   --pretty --profile {env}
 ```
 
-#### 2D: Local Log Files (local env only)
+**Local env — grep log files:**
 
 ```bash
 # Server log
@@ -267,9 +340,133 @@ grep -i "{entity_id}" platro/platro-hs-backend/logs/server.log | tail -50
 grep -i "{entity_id}" platro/platro-psp-emulator/logs/run.log | tail -50
 ```
 
-#### 2E: Present Initial Findings Summary
+#### 2B: Interpret & follow up on logs
 
-After collecting all data, present a concise summary:
+Analyze what the logs reveal. This is the most important step — logs contain the event narrative.
+
+**Actions:**
+
+1. **Summarize log findings** — What happened chronologically? What flows were triggered? Any errors?
+2. **Run follow-up log queries** based on what was found:
+   - If connector API call seen → search for detailed request/response with `connector_transaction_id`
+   - If webhook received → extract `raw_body` from `IncomingWebhookReceive` flow logs
+   - If error logged → search for surrounding context (request_id, time range ±30s)
+   - If no logs found → try previous day's index (entity may have been created yesterday)
+3. **Assess what's still unclear** — Decide if DB queries are needed
+
+#### 2C: DB queries — only if needed
+
+Query DB only when logs leave gaps or when entity status/ledger data is needed. Examples:
+- Entity status unclear from logs alone
+- Need to check ledger balances or entry details
+- `connector_transaction_id` not visible in logs
+- Need to verify which connector was used (from `payout_attempt`)
+- Need allocation batch or payout hold status
+
+**If uncertain whether DB queries are needed, ask the user via `AskUserQuestion`:**
+> "Logs show {brief summary}. Do you want me to also check the database for {specific thing}?"
+
+**For payments (`pay_*`) — hyperswitch_db:**
+
+```sql
+-- payment_intent
+SELECT payment_id, status, amount, currency, merchant_id, active_attempt_id,
+       profile_id, created_at, modified_at
+FROM payment_intent WHERE payment_id = '{entity_id}';
+
+-- payment_attempt (all attempts)
+SELECT attempt_id, payment_id, status, connector, connector_transaction_id,
+       error_code, error_message, authentication_type, payment_method,
+       created_at, modified_at
+FROM payment_attempt WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
+
+-- refund (if any) — NOTE: refund_status, refund_error_code, refund_error_message
+SELECT refund_id, payment_id, attempt_id, refund_status, refund_amount, currency,
+       connector, connector_refund_id, refund_error_code, refund_error_message,
+       created_at, modified_at
+FROM refund WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
+
+-- dispute (if any) — NOTE: dispute_status, dispute_stage
+SELECT dispute_id, payment_id, attempt_id, dispute_status, dispute_stage,
+       amount, currency, connector, connector_dispute_id, dispute_amount,
+       created_at, modified_at
+FROM dispute WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
+```
+
+**For payouts (`po_*`) — hyperswitch_db:**
+
+```sql
+-- payouts — NOTE: no `connector` column here; connector is on payout_attempt
+SELECT payout_id, merchant_id, status, amount, destination_currency, source_currency,
+       payout_type, attempt_count, profile_id, created_at, last_modified_at
+FROM payouts WHERE payout_id = '{entity_id}';
+
+-- payout_attempt (all attempts) — has the connector info
+SELECT payout_attempt_id, payout_id, status, connector, connector_payout_id,
+       error_code, error_message, created_at, last_modified_at
+FROM payout_attempt WHERE payout_id = '{entity_id}' ORDER BY created_at ASC;
+```
+
+**Ledger data — platro_services_db:**
+
+```sql
+-- Find ledger transactions by SourceId or Metadata
+SELECT "Id", "Type", "SourceSystem", "SourceId", "Description", "Metadata", "PostedAt", "CreatedAt"
+FROM ledger_transactions
+WHERE "SourceId" = '{entity_id}'
+   OR "Metadata"::text LIKE '%{entity_id}%'
+ORDER BY "CreatedAt" ASC;
+
+-- Ledger entries for found transactions (run for each transaction ID)
+SELECT le."Id", le."TransactionId", la."AccountName", la."NormalBalance",
+       le."Type", le."Amount", le."BalanceAfter", le."CreatedAt"
+FROM ledger_entries le
+JOIN ledger_accounts la ON le."AccountId" = la."Id"
+WHERE le."TransactionId" = '{transaction_id}'
+ORDER BY le."CreatedAt" ASC;
+```
+
+**For payouts — payout holds:**
+
+```sql
+SELECT "Id", "PayoutId", "MerchantId", "Amount", "Status", "MatchedAt", "CreatedAt"
+FROM payout_holds
+WHERE "PayoutId" = '{entity_id}';
+```
+
+**For payments — allocation batches:**
+
+```sql
+SELECT "Id", "Type", "EntityCode", "PaymentIds", "LedgerTransactionId", "CreatedAt"
+FROM allocation_batches
+WHERE "PaymentIds"::text LIKE '%{entity_id}%'
+ORDER BY "CreatedAt" DESC
+LIMIT 5;
+```
+
+**Execution pattern (local):**
+```bash
+# hyperswitch_db
+docker exec -i platro-pg-1 psql -U db_user -d hyperswitch_db -c "SELECT row_to_json(t) FROM ({query}) t;"
+
+# platro_services_db
+docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c 'SELECT row_to_json(t) FROM ({query}) t;'
+```
+
+**Execution pattern (remote):**
+```bash
+# hyperswitch_db
+PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env.public | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env.secret | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
+
+# platro_services_db
+PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env.public | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env.secret | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d platro_services_db -t -A -c 'SELECT row_to_json(t) FROM ({query}) t;'
+```
+
+**CRITICAL:** PascalCase columns MUST be double-quoted. In shell commands for platro_services_db, use single quotes for the `-c` argument and escape inner single quotes with `'\''`.
+
+#### 2D: Present Initial Findings Summary
+
+After collecting all data (logs + any DB queries), present a concise summary:
 
 ```markdown
 ## Initial Findings
@@ -277,27 +474,23 @@ After collecting all data, present a concise summary:
 **Entity:** `{entity_id}` ({entity_type})
 **Environment:** {env}
 
-### Hyperswitch State
-- **Status:** {status}
-- **Amount:** {amount} {currency}
-- **Merchant:** {merchant_id}
-- **Connector:** {connector}
-- **Attempts:** {count} ({brief status of each})
-- **Refunds:** {count or "none"}
-- **Disputes:** {count or "none"}
-
-### Ledger State
-- **Transactions:** {count} found
-- **Entries:** {count} entries across {n} accounts
-- **Balance check:** {debits == credits ? "balanced" : "IMBALANCED — investigate"}
-- **Payout hold:** {status or "N/A"}
-- **Allocation:** {status or "N/A"}
-
 ### Log Summary
 - **Server events:** {count} events ({key flows seen})
 - **Consumer events:** {count} events
 - **Emulator events:** {count} events
 - **Ledger events:** {count} events
+
+### Key observations from logs
+- {What happened: creation, connector calls, webhooks, errors}
+
+### DB State (if queried)
+- **Status:** {status}
+- **Amount:** {amount} {currency}
+- **Merchant:** {merchant_id}
+- **Connector:** {connector from attempt table}
+- **Attempts:** {count} ({brief status of each})
+- **Ledger transactions:** {count} found
+- **Balance check:** {debits == credits ? "balanced" : "IMBALANCED"}
 
 ### Anomalies Detected
 - {List any issues found — errors, missing data, stuck states, imbalances}
@@ -358,15 +551,26 @@ After collecting all data, present a concise summary:
 
 **Actions:**
 
-1. **Chronological timeline:**
+1. **Chronological events table** — the primary deliverable of every investigation:
 
-   Merge events from all sources (DB timestamps + log timestamps) into a single ordered timeline:
+   Build from all collected data (logs + DB if queried). Merge events from all sources into a single ordered table:
 
    ```
-   {timestamp} | {source} | {event description}
+   | # | Time (UTC) | Source | Event |
+   |---|------------|--------|-------|
+   | 1 | 14:45:28 | Server-Log | PayoutsCreate — request received, amount=1100 INR |
+   | 2 | 14:45:38 | Server-Log | ConnectorApi — POST to indiapay, response: pending |
+   | 3 | 14:50:26 | Server-Log | IncomingWebhookReceive — PSP reports status=success |
+   | 4 | 14:50:27 | Server-Log | PoSync ERROR — PSP returned 500 |
    ```
 
-   Sources: `HS-DB`, `Ledger-DB`, `Server-Log`, `Consumer-Log`, `Emulator-Log`, `Ledger-Log`
+   **Rules:**
+   - Always present — this is the primary output of every investigation
+   - Include event number for easy reference in discussion
+   - Collapse timestamps to time-only (HH:MM:SS) when all events are same day
+   - One row per meaningful event (not per log line)
+   - Include key data inline (status, error codes, amounts)
+   - Source labels: `Server-Log`, `Consumer-Log`, `Ledger-Log`, `Emulator-Log`, `HS-DB`, `Ledger-DB`
 
 2. **Root cause analysis** (if transaction failed or is stuck):
 
@@ -421,9 +625,9 @@ After collecting all data, present a concise summary:
 
    ### Timeline
 
-   | Time | Source | Event |
-   |------|--------|-------|
-   | ... | ... | ... |
+   | # | Time (UTC) | Source | Event |
+   |---|------------|--------|-------|
+   | ... | ... | ... | ... |
 
    ### Root Cause (if applicable)
 
