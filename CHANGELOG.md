@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.1 — 2026-02-27
+
+**Added**
+- `transaction-investigating` skill for end-to-end transaction debugging across databases, logs, and ledger
+
 ## 2.6.0 — 2026-02-10
 
 **Added**
