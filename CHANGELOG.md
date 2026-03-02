@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.3 — 2026-03-02
+
+**Fixed**
+- Added missing platro-services ledger log path to transaction-investigating local env queries
+
 ## 2.6.2 — 2026-02-27
 
 **Changed**

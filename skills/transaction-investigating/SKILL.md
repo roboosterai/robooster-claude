@@ -338,6 +338,9 @@ grep -i "{entity_id}" platro/platro-hs-backend/logs/server.log | tail -50
 
 # PSP Emulator log
 grep -i "{entity_id}" platro/platro-psp-emulator/logs/run.log | tail -50
+
+# Ledger service log
+grep -i "{entity_id}" platro/platro-services/logs/ledger.log | tail -50
 ```
 
 #### 2B: Interpret & follow up on logs
@@ -762,6 +765,7 @@ Pattern: `logs-platro-{service}-1-{YYYY-MM-DD}`
 ```
 platro/platro-hs-backend/logs/server.log
 platro/platro-psp-emulator/logs/run.log
+platro/platro-services/logs/ledger.log
 ```
 
 ---
