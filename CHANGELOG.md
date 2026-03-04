@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.4 — 2026-03-04
+
+**Changed**
+- Updated transaction-investigating skill: router log path (server.log → router.log), unified .env credential paths for remote envs
+
 ## 2.6.3 — 2026-03-02
 
 **Fixed**

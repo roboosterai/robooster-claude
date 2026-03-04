@@ -243,9 +243,9 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
    | Env | DB Method | DB Port | Log Method | Creds Source |
    |-----|-----------|---------|------------|--------------|
    | local | `docker exec -i platro-pg-1 psql -U db_user` | N/A | grep local log files | hardcoded `db_user`/`db_pass` |
-   | dev | `psql -h localhost -p 8442` | 8442 | `opensearch-cli --profile dev` | `platro/platro-base-deploy/dev/.env.*` |
-   | stage | `psql -h localhost -p 8452` | 8452 | `opensearch-cli --profile stage` | `platro/platro-base-deploy/stage/.env.*` |
-   | prod | `psql -h localhost -p 8462` | 8462 | `opensearch-cli --profile prod` | `platro/platro-base-deploy/prod/.env.*` |
+   | dev | `psql -h localhost -p 8442` | 8442 | `opensearch-cli --profile dev` | `platro/platro-base-deploy/dev/server/.env` |
+   | stage | `psql -h localhost -p 8452` | 8452 | `opensearch-cli --profile stage` | `platro/platro-base-deploy/stage/server/.env` |
+   | prod | `psql -h localhost -p 8462` | 8462 | `opensearch-cli --profile prod` | `platro/platro-base-deploy/prod/server/.env` |
 
    **For remote environments (dev/stage/prod):**
    - Read DB credentials from env files:
@@ -334,7 +334,7 @@ opensearch-cli curl post \
 
 ```bash
 # Server log
-grep -i "{entity_id}" platro/platro-hs-backend/logs/server.log | tail -50
+grep -i "{entity_id}" platro/platro-hs-backend/logs/router.log | tail -50
 
 # PSP Emulator log
 grep -i "{entity_id}" platro/platro-psp-emulator/logs/run.log | tail -50
@@ -459,10 +459,10 @@ docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c 'SELECT row_
 **Execution pattern (remote):**
 ```bash
 # hyperswitch_db
-PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env.public | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env.secret | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
+PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
 
 # platro_services_db
-PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env.public | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env.secret | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d platro_services_db -t -A -c 'SELECT row_to_json(t) FROM ({query}) t;'
+PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d platro_services_db -t -A -c 'SELECT row_to_json(t) FROM ({query}) t;'
 ```
 
 **CRITICAL:** PascalCase columns MUST be double-quoted. In shell commands for platro_services_db, use single quotes for the `-c` argument and escape inner single quotes with `'\''`.
@@ -721,8 +721,8 @@ docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c '{query}'
 **Remote (psql via tunnel):**
 ```bash
 # Read credentials
-PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env.public | cut -d= -f2)
-PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env.secret | cut -d= -f2)
+PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env | cut -d= -f2)
+PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env | cut -d= -f2)
 
 # hyperswitch_db
 PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "{query}"
@@ -763,7 +763,7 @@ Pattern: `logs-platro-{service}-1-{YYYY-MM-DD}`
 ### Local Log File Paths
 
 ```
-platro/platro-hs-backend/logs/server.log
+platro/platro-hs-backend/logs/router.log
 platro/platro-psp-emulator/logs/run.log
 platro/platro-services/logs/ledger.log
 ```
