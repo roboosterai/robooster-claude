@@ -292,11 +292,11 @@ Logs tell the full event story: creation, connector API calls, webhooks, errors,
 
 **Remote envs — OpenSearch (query all 4 indices in parallel):**
 
-**Server logs (event_logger, connector API, webhooks):**
+**Router logs (event_logger, connector API, webhooks):**
 
 ```bash
 opensearch-cli curl post \
-  --path "logs-platro-server-1-{date}/_search" \
+  --path "logs-platro-router-1-{date}/_search" \
   --data '{"query":{"bool":{"must":[{"match":{"message":"event_logger"}},{"bool":{"should":[{"match_phrase":{"{id_field}":"{entity_id}"}},{"match_phrase":{"event":"{entity_id}"}}],"minimum_should_match":1}}],"must_not":[{"terms":{"flow.keyword":["PaymentsList","PaymentsRetrieve","PayoutsList","PayoutsRetrieve"]}}]}},"size":50,"sort":[{"timestamp":{"order":"asc"}}]}' \
   --pretty --profile {env}
 ```
@@ -333,7 +333,7 @@ opensearch-cli curl post \
 **Local env — grep log files:**
 
 ```bash
-# Server log
+# Router log
 grep -i "{entity_id}" platro/platro-hs-backend/logs/router.log | tail -50
 
 # PSP Emulator log
@@ -478,7 +478,7 @@ After collecting all data (logs + any DB queries), present a concise summary:
 **Environment:** {env}
 
 ### Log Summary
-- **Server events:** {count} events ({key flows seen})
+- **Router events:** {count} events ({key flows seen})
 - **Consumer events:** {count} events
 - **Emulator events:** {count} events
 - **Ledger events:** {count} events
@@ -513,13 +513,13 @@ After collecting all data (logs + any DB queries), present a concise summary:
 
    | Finding | Follow-Up Action |
    |---------|-----------------|
-   | `error_code` on attempt | Search server logs for connector response body: `opensearch-cli` with `connector_transaction_id` and `ConnectorApiLogs` |
+   | `error_code` on attempt | Search router logs for connector response body: `opensearch-cli` with `connector_transaction_id` and `ConnectorApiLogs` |
    | Succeeded in HS but no ledger entries | Search ledger logs for processing errors by `{entity_id}` in `Message` field |
    | Multiple attempts exist | Compare `connector`, `status`, `error_code` across attempts; check if retried or different connectors |
    | Webhook status change detected | Find `IncomingWebhookReceive` logs: filter by `flow` + entity ID, extract `raw_body` |
    | Payout stuck in `pending`/`initiated` | Check consumer sync workflow logs for this payout; look for timeout or error |
-   | Refund exists | Trace refund through server logs separately; check refund ledger transaction |
-   | Dispute exists | Trace dispute through server logs; check dispute ledger entries and `dispute_lost_fee` |
+   | Refund exists | Trace refund through router logs separately; check refund ledger transaction |
+   | Dispute exists | Trace dispute through router logs; check dispute ledger entries and `dispute_lost_fee` |
    | Allocation batch found | Check `AllocationExecutor` logs in ledger index for batch processing |
    | Payout hold not matched | Cross-check payout terminal status; search `ChronologicalSyncOrchestrator` logs |
    | Ledger debits != credits | Flag as critical; search for failed/partial transaction processing |
@@ -561,10 +561,10 @@ After collecting all data (logs + any DB queries), present a concise summary:
    ```
    | # | Time (UTC) | Source | Event |
    |---|------------|--------|-------|
-   | 1 | 14:45:28 | Server-Log | PayoutsCreate — request received, amount=1100 INR |
-   | 2 | 14:45:38 | Server-Log | ConnectorApi — POST to indiapay, response: pending |
-   | 3 | 14:50:26 | Server-Log | IncomingWebhookReceive — PSP reports status=success |
-   | 4 | 14:50:27 | Server-Log | PoSync ERROR — PSP returned 500 |
+   | 1 | 14:45:28 | Router-Log | PayoutsCreate — request received, amount=1100 INR |
+   | 2 | 14:45:38 | Router-Log | ConnectorApi — POST to indiapay, response: pending |
+   | 3 | 14:50:26 | Router-Log | IncomingWebhookReceive — PSP reports status=success |
+   | 4 | 14:50:27 | Router-Log | PoSync ERROR — PSP returned 500 |
    ```
 
    **Rules:**
@@ -573,7 +573,7 @@ After collecting all data (logs + any DB queries), present a concise summary:
    - Collapse timestamps to time-only (HH:MM:SS) when all events are same day
    - One row per meaningful event (not per log line)
    - Include key data inline (status, error codes, amounts)
-   - Source labels: `Server-Log`, `Consumer-Log`, `Ledger-Log`, `Emulator-Log`, `HS-DB`, `Ledger-DB`
+   - Source labels: `Router-Log`, `Consumer-Log`, `Ledger-Log`, `Emulator-Log`, `HS-DB`, `Ledger-DB`
 
 2. **Root cause analysis** (if transaction failed or is stuck):
 
@@ -755,7 +755,7 @@ Pattern: `logs-platro-{service}-1-{YYYY-MM-DD}`
 
 | Service | Index Example |
 |---------|---------------|
-| server | `logs-platro-server-1-2026-02-27` |
+| router | `logs-platro-router-1-2026-02-27` |
 | consumer | `logs-platro-consumer-1-2026-02-27` |
 | psp-emulator | `logs-platro-psp-emulator-1-2026-02-27` |
 | ledger | `logs-platro-ledger-1-2026-02-27` |
@@ -773,7 +773,7 @@ platro/platro-services/logs/ledger.log
 ## OpenSearch Field Reference
 
 ```
-Server index fields (logs-platro-server-*):
+Router index fields (logs-platro-router-*):
   Keyword:  flow, level, merchant_id, payment_id, payout_id, connector
   Text:     message, event, raw_body, payload
   Date:     timestamp
@@ -803,13 +803,13 @@ Ledger index fields (logs-platro-ledger-*):
 
 | # | Finding | Interpretation | Follow-Up Query |
 |---|---------|---------------|-----------------|
-| 1 | `error_code` on payment_attempt | Connector rejected the request | Search server logs for `ConnectorApiLogs` with `connector_transaction_id` |
+| 1 | `error_code` on payment_attempt | Connector rejected the request | Search router logs for `ConnectorApiLogs` with `connector_transaction_id` |
 | 2 | Payment succeeded but 0 ledger entries | Ledger processing failed or hasn't run yet | Search ledger logs for entity ID in `Message`; check `LedgerEntryService` category |
 | 3 | Multiple payment attempts | Payment was retried (possibly different connector) | Compare status/error/connector across attempts |
 | 4 | `IncomingWebhookReceive` flow in logs | PSP sent a webhook callback | Extract `raw_body` to see PSP payload; check if status changed |
 | 5 | Payout stuck `pending`/`initiated` | Sync workflow hasn't completed or connector hasn't confirmed | Search consumer logs; check `ChronologicalSyncOrchestrator` in ledger logs |
-| 6 | Refund record exists | Payment was (partially) refunded | Trace refund in server logs; check refund ledger transaction |
-| 7 | Dispute record exists | Chargeback or dispute opened | Trace dispute in server logs; verify `dispute_lost_fee` ledger entries |
+| 6 | Refund record exists | Payment was (partially) refunded | Trace refund in router logs; check refund ledger transaction |
+| 7 | Dispute record exists | Chargeback or dispute opened | Trace dispute in router logs; verify `dispute_lost_fee` ledger entries |
 | 8 | Allocation batch contains payment | Payment is part of a merchant wire allocation | Check `AllocationExecutor` logs in ledger index |
 | 9 | Payout hold exists but `Status` != `Matched` | Hold not yet matched to a completed payout | Check payout terminal status; search `ChronologicalSyncOrchestrator` |
 | 10 | Ledger debits != credits | Double-entry invariant broken — critical | Flag immediately; search for partial transaction processing |

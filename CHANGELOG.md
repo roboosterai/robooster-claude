@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.6.5 — 2026-03-06
+
+**Changed**
+- Renamed all server→router references in transaction-investigating skill (index names, source labels, field references)
+
 ## 2.6.4 — 2026-03-04
 
 **Changed**
