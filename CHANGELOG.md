@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.7.0 — 2026-03-06
+
+**Added**
+- Incoming PSP webhook query (IncomingWebhookReceive flow search)
+- Outgoing merchant webhook query (trigger_webhook_and_raise_event search)
+- Connector API request/response query (execute_connector_processing_step search)
+- Phase 2A-bis: Signature & Raw Body Retrieval via request_id pipeline
+- Webhook & signature follow-up rules in Phase 2B
+- Timeline event types: IncomingWebhook, SignatureVerified/Failed, OutgoingWebhook, ConnectorRequest/Response
+- Adaptive investigation rules 14-19 for webhook/signature scenarios
+- Payout search note about sparse payout_id keyword indexing
+
+**Changed**
+- OpenSearch Field Reference with new router index fields (incoming_webhook_payload, request_id, event_type, Key fns)
+
 ## 2.6.5 — 2026-03-06
 
 **Changed**

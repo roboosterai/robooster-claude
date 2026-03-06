@@ -290,6 +290,8 @@ Run all queries in this phase. Present a brief summary of findings after each se
 
 Logs tell the full event story: creation, connector API calls, webhooks, errors, sync attempts. **Always query logs first.**
 
+> **Payout search note:** The `payout_id` keyword field is sparsely indexed — many log entries only contain the payout ID in text fields (`message`, `event`). For complete results, the skill MUST search `message` text, `event` text, AND the `payout_id` keyword field. The existing queries already cover `message` and `payout_id`; the webhook and connector queries below also search the `event` field.
+
 **Remote envs — OpenSearch (query all 4 indices in parallel):**
 
 **Router logs (event_logger, connector API, webhooks):**
@@ -343,6 +345,92 @@ grep -i "{entity_id}" platro/platro-psp-emulator/logs/run.log | tail -50
 grep -i "{entity_id}" platro/platro-services/logs/ledger.log | tail -50
 ```
 
+**Remote envs — OpenSearch webhook & connector queries (run in parallel with above):**
+
+**Incoming PSP webhooks:**
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"match":{"flow":"IncomingWebhookReceive"}},{"bool":{"should":[{"match_phrase":{"message":"{entity_id}"}},{"match_phrase":{"{id_field}":"{entity_id}"}}],"minimum_should_match":1}}]}},"size":20,"sort":[{"timestamp":{"order":"asc"}}],"_source":["message","flow","fn","file","timestamp","level","request_id"]}' \
+  --pretty --profile {env}
+```
+
+**Outgoing merchant webhooks:**
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"match":{"fn":"trigger_webhook_and_raise_event"}},{"match":{"file":"event_logger"}},{"bool":{"should":[{"match_phrase":{"event":"{entity_id}"}},{"match_phrase":{"{id_field}":"{entity_id}"}}],"minimum_should_match":1}}]}},"size":20,"sort":[{"timestamp":{"order":"asc"}}]}' \
+  --pretty --profile {env}
+```
+
+**Connector API request/response:**
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"match":{"fn":"execute_connector_processing_step"}},{"match":{"file":"event_logger"}},{"match_phrase":{"event":"{entity_id}"}}]}},"size":20,"sort":[{"timestamp":{"order":"asc"}}]}' \
+  --pretty --profile {env}
+```
+
+**Local env — additional grep patterns:**
+
+```bash
+# Incoming webhook
+grep -i "IncomingWebhookReceive" platro/platro-hs-backend/logs/router.log | grep "{entity_id}" | tail -20
+
+# Outgoing webhook
+grep -i "trigger_webhook_and_raise_event" platro/platro-hs-backend/logs/router.log | grep "{entity_id}" | tail -20
+
+# Signature
+grep -i "signature" platro/platro-hs-backend/logs/router.log | grep -B2 -A2 "{entity_id}" | tail -20
+```
+
+#### 2A-bis: Signature & Raw Body Retrieval
+
+**Goal:** When incoming webhook logs are found, extract the full signature verification pipeline using `request_id`.
+
+This is a **follow-up step** that runs after Phase 2A if any `IncomingWebhookReceive` log entries were found.
+
+**Step 1:** Extract `request_id` from any IncomingWebhookReceive log entry that matched the entity ID.
+
+**Step 2:** Query by `request_id` + `fn=incoming_webhooks_core` to get the signature pipeline:
+
+**Remote:**
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"match_phrase":{"request_id":"{request_id}"}},{"match":{"fn":"incoming_webhooks_core"}}]}},"size":20,"sort":[{"timestamp":{"order":"asc"}}]}' \
+  --pretty --profile {env}
+```
+
+This returns:
+- Signature entry: `IndiaPay signature=<hash>` (no entity ID — only findable by request_id)
+- Source message: `IndiaPay source message={JSON}:<ts>` (raw PSP body)
+
+**Step 3:** Query by `request_id` + `incoming_webhook_payload` exists:
+
+**Remote:**
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"match_phrase":{"request_id":"{request_id}"}},{"exists":{"field":"incoming_webhook_payload"}}]}},"size":10,"sort":[{"timestamp":{"order":"asc"}}]}' \
+  --pretty --profile {env}
+```
+
+This returns the structured JSON webhook payload field.
+
+**Local env:** Use the timestamp from the entity's webhook log and grep ±2 lines for "signature" in the router log:
+
+```bash
+grep -B2 -A2 "signature" platro/platro-hs-backend/logs/router.log | grep -B4 -A4 "{approximate_timestamp}" | tail -20
+```
+
+**IMPORTANT:** When presenting signature/raw body data, print the RAW messages as-is without reformatting — the whole point is to see the exact payload content.
+
 #### 2B: Interpret & follow up on logs
 
 Analyze what the logs reveal. This is the most important step — logs contain the event narrative.
@@ -356,6 +444,16 @@ Analyze what the logs reveal. This is the most important step — logs contain t
    - If error logged → search for surrounding context (request_id, time range ±30s)
    - If no logs found → try previous day's index (entity may have been created yesterday)
 3. **Assess what's still unclear** — Decide if DB queries are needed
+
+4. **Webhook & signature follow-up rules:**
+
+   | Finding | Follow-Up Action |
+   |---------|-----------------|
+   | IncomingWebhookReceive logs found | Extract `request_id`, run signature pipeline query (Phase 2A-bis), present raw incoming payload |
+   | Outgoing webhook event_logger entry found | Present `event.content` as the raw merchant webhook payload |
+   | Signature log found | Compare with source message; note if signature verification passed (no error) or failed (look for ERROR level around same timestamp) |
+   | No incoming webhook logs | PSP webhook may not have been sent; check if transaction is still pending |
+   | No outgoing webhook logs | Merchant webhook may not be configured; check `error while fetching merchant webhook config` warning |
 
 #### 2C: DB queries — only if needed
 
@@ -574,6 +672,13 @@ After collecting all data (logs + any DB queries), present a concise summary:
    - One row per meaningful event (not per log line)
    - Include key data inline (status, error codes, amounts)
    - Source labels: `Router-Log`, `Consumer-Log`, `Ledger-Log`, `Emulator-Log`, `HS-DB`, `Ledger-DB`
+   - Include these event types when found:
+     - `IncomingWebhook` — PSP webhook received, include raw status from payload
+     - `SignatureVerified` — Signature check passed (no ERROR after signature log)
+     - `SignatureFailed` — Signature check failed (ERROR after signature log)
+     - `OutgoingWebhook` — Merchant webhook sent, include event_type from payload
+     - `ConnectorRequest` — Raw request sent to PSP connector
+     - `ConnectorResponse` — Raw response received from PSP connector
 
 2. **Root cause analysis** (if transaction failed or is stuck):
 
@@ -777,7 +882,11 @@ Router index fields (logs-platro-router-*):
   Keyword:  flow, level, merchant_id, payment_id, payout_id, connector
   Text:     message, event, raw_body, payload
   Date:     timestamp
+  Object:   incoming_webhook_payload, event
+  Keyword:  request_id, event_type, event_id, log_type
   Key flows: PaymentsCreate, PayoutsCreate, IncomingWebhookReceive, RefundsList
+  Key fns:  incoming_webhooks_core, trigger_webhook_and_raise_event,
+            create_event_and_trigger_outgoing_webhook, execute_connector_processing_step
 
 Consumer index fields (logs-platro-consumer-*):
   Keyword:  flow, level, payment_id, payout_id
@@ -816,6 +925,12 @@ Ledger index fields (logs-platro-ledger-*):
 | 11 | No `connector_transaction_id` | Request may not have reached the PSP | Check `ConnectorApiLogs` for HTTP-level errors (timeout, 5xx) |
 | 12 | Entity exists in DB but no logs found | Logs may be on a different day | Retry with previous day's index; check `created_at` date |
 | 13 | Payment `requires_capture` status | Payment authorized but not captured | Check if auto-capture is enabled; look for capture attempt in logs |
+| 14 | Incoming webhook received | PSP callback arrived | Extract request_id → query signature pipeline → present raw body |
+| 15 | Signature log found without error | Signature verification passed | Note in timeline; no further action needed |
+| 16 | ERROR near signature timestamp | Signature verification may have failed | Search for ERROR level logs with same request_id |
+| 17 | Outgoing webhook event found | Merchant was notified | Present event.content; check if webhook delivery succeeded |
+| 18 | `error while fetching merchant webhook config` | Merchant webhook URL not configured | Note in report; this means merchant won't receive callbacks |
+| 19 | `Outgoing webhooks retry config not found` | Webhook retry not configured | Note as informational; single delivery attempt only |
 
 ---
 
