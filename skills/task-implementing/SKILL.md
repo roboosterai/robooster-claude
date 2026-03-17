@@ -33,25 +33,36 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 
 1. **Session date:** !`date +%Y-%m-%d`
 
-2. **Determine project context using AskUserQuestion:**
+2. **Determine project context:**
 
-   **Question:** "Which project is this work for?"
+   a. **Auto-detect from working directory:** Check the current working directory path:
+      - If the CWD directory name is `platro` → set `{PLATRO_ROOT}` = CWD
+      - Else if the CWD parent directory name is `platro` → set `{PLATRO_ROOT}` = parent of CWD
 
-   **Options:**
+   b. **If `{PLATRO_ROOT}` was resolved** → auto-set project to **Platro**:
+      - `{PROJECT}` = Platro
+      - `{KB_ROOT}` = `{PLATRO_ROOT}/platro-kb`
+      - `{GITHUB_REPO}` = `https://github.com/roboosterai/platro-kb`
 
-   | Option           | Description                                              |
-   |------------------|----------------------------------------------------------|
-   | **Platro**       | Platro payment platform — saves to `platro/platro-kb/`   |
-   | **General/Root** | Cross-project or general work — saves to root `kb/`      |
+   c. **If not auto-detected** → determine using AskUserQuestion:
 
-3. **Set session variables based on selection:**
+      **Question:** "Which project is this work for?"
 
-   | Project      | `{KB_ROOT}`         | `{GITHUB_REPO}`                            |
-   |--------------|---------------------|--------------------------------------------|
-   | Platro       | `platro/platro-kb`  | `https://github.com/roboosterai/platro-kb` |
-   | General/Root | `kb`                | `~`                                        |
+      **Options:**
 
-4. **Parse arguments:**
+      | Option           | Description                                              |
+      |------------------|----------------------------------------------------------|
+      | **Platro**       | Platro payment platform — provide the path to `platro-kb/` |
+      | **General/Root** | Cross-project or general work — saves to root `kb/`      |
+
+      Set variables based on selection:
+
+      | Project      | `{KB_ROOT}`         | `{GITHUB_REPO}`                            |
+      |--------------|---------------------|--------------------------------------------|
+      | Platro       | `platro/platro-kb`  | `https://github.com/roboosterai/platro-kb` |
+      | General/Root | `kb`                | `~`                                        |
+
+3. **Parse arguments:**
    - `--spec= @{path}` or `--spec={path}` — Feature Spec file path. Note the space before `@` — required for autocomplete to work. Strip leading `@` and `./` from path when parsing.
    - `--task={N}` — Task number to implement
    - `--review= @{path}` or `--review={path}` — Review findings file (optional). Same parsing rules.
@@ -69,8 +80,6 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
    > - KB: {KB_ROOT}/
 
 **Proceed when:** Date and project context established
-
-Write initial checkpoint.
 
 → Proceed to Phase 2
 
@@ -178,7 +187,6 @@ Write initial checkpoint.
 
 **Proceed when:** User confirms understanding
 
-Update checkpoint with extracted context (AC, key files, commands).
 
 → Proceed to Phase 3
 
@@ -231,7 +239,6 @@ Update checkpoint with extracted context (AC, key files, commands).
 
 **Proceed when:** User approves plan and Tasks are created
 
-Update checkpoint: Phase 3 complete.
 
 → Proceed to Phase 4
 
@@ -266,7 +273,6 @@ Update checkpoint: Phase 3 complete.
 
 **Proceed when:** Implementation complete, build passes, existing tests pass
 
-Update checkpoint: Phase 4 complete, list files changed.
 
 → Proceed to Phase 5
 
@@ -471,7 +477,6 @@ Task(
      > - Fixed: {brief list of what was changed}
      > - Remaining: {brief list of open issues}
 
-   Update checkpoint with iteration results and current step.
 
    **Smart re-run on iteration 2+ (skip clean agents):**
 
@@ -739,7 +744,6 @@ If code-review findings remain unresolved (Findings remaining > 0 in Quality Sum
    > ### Next Task
    > To continue: `/task-implementing --spec={spec path} --task={N+1}`
 
-Delete checkpoint: `rm -f .claude/skill-checkpoint.md`
 
 **Session complete.**
 
@@ -752,52 +756,6 @@ Delete checkpoint: `rm -f .claude/skill-checkpoint.md`
 | G1 | Phase 2 | "Understanding confirmed?" | Continue | Clarify gaps |
 | G2 | Phase 3 | "Plan approved?" | Continue | Iterate plan |
 | G3 | Phase 5 | "Quality acceptable?" | Continue | Fix remaining |
-
----
-
-## Checkpoint-Resume
-
-The skill writes a checkpoint file at each phase transition to survive context compacting.
-
-**File path:** `$CLAUDE_PROJECT_DIR/.claude/skill-checkpoint.md` (use the project root `.claude/` directory)
-
-**When to write:** After completing each phase (before proceeding to the next), and after each Phase 5 iteration.
-
-**When to delete:** At the end of Phase 6 (session complete): `rm -f .claude/skill-checkpoint.md`
-
-**Checkpoint template:**
-
-    # Skill Checkpoint: task-implementing
-
-    **Resume instruction:** You are mid-execution of the task-implementing skill.
-    Read the full skill at: robooster-claude/skills/task-implementing/SKILL.md
-    Then continue from the phase/step below.
-
-    ## State
-    - Phase: {N} — {phase name} ({step detail if in Phase 5})
-    - Spec: {spec path}
-    - Task: {N} — {task name}
-    - Project: {project name} (KB: {KB_ROOT})
-    - Date: {session date}
-
-    ## Context
-    - AC: {numbered list, one line each}
-    - Key files: {comma-separated list}
-    - Build: {build command}
-    - Test: {test command}
-    - Mutation scope: {all/new/none}
-
-    ## Progress
-    - {Phase 1}: ✅
-    - {Phase 2}: ✅
-    - {Phase 3}: ✅
-    - {Phase 4}: {✅ or current step}
-    - {Phase 5}: {iteration N, step detail}
-    - {Phase 6}: pending
-
-    ## Decisions & Deviations
-    - {Any decisions made during implementation}
-    - {Any deviations from spec}
 
 ---
 
@@ -815,9 +773,8 @@ The skill writes a checkpoint file at each phase transition to survive context c
 10. **Always write handoff** — Every session ends with a handoff document
 11. **Tasks for implementation steps, not acceptance criteria** — Create Tasks from the implementation plan (file-by-file changes). Do NOT create Tasks from acceptance criteria (they get prematurely marked complete and don't map 1:1 to implementation steps). Track acceptance criteria in the handoff document.
 12. **Programmatic plan mode** — Call `EnterPlanMode` directly; never ask user to press Shift+Tab
-13. **Create Tasks after plan approval** — Phase 3 must create Tasks from the approved implementation plan before proceeding to Phase 4. This ensures implementation steps survive context compacting.
-14. **Checkpoint at every phase transition** — Write/update `.claude/skill-checkpoint.md` after each phase completes. Delete it at end of Phase 6.
-15. **Smart re-runs on iteration 2+** — Only re-invoke agents that had findings or are affected by fixes. Always re-run ac-verifier.
+13. **Create Tasks after plan approval** — Phase 3 must create Tasks from the approved implementation plan before proceeding to Phase 4.
+14. **Smart re-runs on iteration 2+** — Only re-invoke agents that had findings or are affected by fixes. Always re-run ac-verifier.
 16. **Bug registration at G3** — Unresolved code-review findings are offered for bug registration at Gate G3. Bug-reporter agents run in parallel, one per finding.
 
 ---

@@ -34,19 +34,31 @@ Execute phases in order. Use `AskUserQuestion` for all user interaction.
 1. **Session date:** !`date +%Y-%m-%d`
 
 2. **Check for inherited project context:**
-   - If args contain `--project={value}`, use that value and skip to step 4
+   - If args contain `--project={value}`, use that value and skip to step 5
    - Otherwise, continue to step 3
 
-3. **Determine project context using AskUserQuestion:**
+3. **Determine project context:**
 
-   **Question:** "Which project is this work for?"
+   a. **Auto-detect from working directory:** Check the current working directory path:
+      - If the CWD directory name is `platro` → set `{PLATRO_ROOT}` = CWD
+      - Else if the CWD parent directory name is `platro` → set `{PLATRO_ROOT}` = parent of CWD
 
-   **Options:**
+   b. **If `{PLATRO_ROOT}` was resolved** → auto-set project to **Platro**:
+      - `{PROJECT}` = Platro
+      - `{KB_ROOT}` = `{PLATRO_ROOT}/platro-kb`
+      - `{GITHUB_REPO}` = `https://github.com/roboosterai/platro-kb`
+      - Skip to step 5
 
-   | Option           | Description                                              |
-   |------------------|----------------------------------------------------------|
-   | **Platro**       | Platro payment platform — saves to `platro/platro-kb/`   |
-   | **General/Root** | Cross-project or general work — saves to root `kb/`      |
+   c. **If not auto-detected** → determine using AskUserQuestion:
+
+      **Question:** "Which project is this work for?"
+
+      **Options:**
+
+      | Option           | Description                                              |
+      |------------------|----------------------------------------------------------|
+      | **Platro**       | Platro payment platform — provide the path to `platro-kb/` |
+      | **General/Root** | Cross-project or general work — saves to root `kb/`      |
 
 4. **Set session variables based on selection:**
 

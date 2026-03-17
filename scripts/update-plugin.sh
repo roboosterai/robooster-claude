@@ -214,22 +214,15 @@ else
     WARNINGS+=("Failed to update marketplace: $MARKETPLACE_OUTPUT")
 fi
 
-# Step 11: Detect plugin scope
-PLUGIN_LIST_OUTPUT=$(claude plugin list 2>/dev/null)
-if echo "$PLUGIN_LIST_OUTPUT" | grep -q "robooster-claude"; then
-    # Extract scope from the output (look for Scope: line after robooster-claude)
-    SCOPE_LINE=$(echo "$PLUGIN_LIST_OUTPUT" | grep -A5 "robooster-claude" | grep -i "scope:" | head -1)
-    if echo "$SCOPE_LINE" | grep -qi "project"; then
-        PLUGIN_SCOPE="project"
-    elif echo "$SCOPE_LINE" | grep -qi "user"; then
-        PLUGIN_SCOPE="user"
-    fi
-fi
+# Step 11: Detect plugin scope from installed_plugins.json
+PLUGIN_SCOPE=$(grep -A3 '"robooster-claude@robooster-marketplace"' \
+    ~/.claude/plugins/installed_plugins.json 2>/dev/null \
+    | grep '"scope"' | sed 's/.*"scope": *"\([^"]*\)".*/\1/')
 
 # Step 12: Update local plugin
 if [ "$MARKETPLACE_UPDATED" = "true" ]; then
-    if [ "$PLUGIN_SCOPE" = "project" ]; then
-        PLUGIN_OUTPUT=$(claude plugin update robooster-claude@robooster-marketplace --scope project 2>&1)
+    if [ -n "$PLUGIN_SCOPE" ]; then
+        PLUGIN_OUTPUT=$(claude plugin update robooster-claude@robooster-marketplace --scope "$PLUGIN_SCOPE" 2>&1)
     else
         PLUGIN_OUTPUT=$(claude plugin update robooster-claude@robooster-marketplace 2>&1)
     fi

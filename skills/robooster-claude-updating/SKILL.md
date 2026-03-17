@@ -20,10 +20,12 @@ Streamlined release workflow for robooster-claude plugin with single confirmatio
 
 2. **Find robooster-claude repository:**
 
-   Check if `$PWD/robooster-claude` exists:
-   ```bash
-   [ -d "$PWD/robooster-claude/.git" ] && ROBOOSTER_CLAUDE_DIR="$PWD/robooster-claude"
-   ```
+   Try these locations in order (first match wins):
+
+   a. CWD **is** the repo: `basename "$PWD"` == `robooster-claude` and `$PWD/.git` exists
+   b. Direct child: `$PWD/robooster-claude/.git` exists
+   c. Sibling (from `platro/`): `basename "$PWD"` == `platro` and `$PWD/../robooster-claude/.git` exists
+   d. Sibling of parent (from `platro/platro-*/`): `basename "$(dirname "$PWD")"` == `platro` and `$PWD/../../robooster-claude/.git` exists
 
    If not found, ask user for the path.
 

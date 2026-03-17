@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.8.0 — 2026-03-17
+
+**Added**
+- Auto-detect project context from working directory in 5 skills (brainstorming, concept-writing, researching, specs-writing, task-implementing)
+- Shared rules system (setup-rules.sh + shared-rules/conventions.md)
+
+**Changed**
+- Plugin scope detection reads installed_plugins.json directly instead of CLI output
+- Improved repo discovery paths in robooster-claude-updating (CWD, child, sibling, parent-sibling)
+
+**Removed**
+- Checkpoint-resume system (SessionStart hook, resume-checkpoint.sh, checkpoint writes in task-implementing)
+
 ## 2.7.0 — 2026-03-06
 
 **Added**
