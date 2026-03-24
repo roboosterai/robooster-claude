@@ -106,19 +106,23 @@ opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"
 
 ### Phase 3: Report
 
-**Goal**: Produce a formatted markdown report as your final output.
+**Goal**: Produce a formatted report as your final output.
 
-**If zero errors and zero warnings found**, output:
+**CRITICAL OUTPUT RULES**:
+- Output ONLY the report text below — no preamble, no "Let me compile...", no "Here is the report", no thinking out loud
+- Do NOT use backticks or inline code formatting anywhere in the report — use plain text for all values, field names, error messages
+- Do NOT use --- horizontal rules
+- Start your response directly with the first line of the report template
+- This text will be sent to Telegram as-is — it must be clean and human-readable
 
-```
+**If zero errors and zero warnings found**, output exactly:
+
 ✅ **Monitoring Check** — {from} to {to} UTC
 
 All clear. No errors or warnings detected across router and ledger services.
-```
 
 **If issues found**, output using this template:
 
-```
 **Monitoring Report** — {from} to {to} UTC
 
 **Status**: {status_emoji} {status_text}
@@ -127,22 +131,20 @@ All clear. No errors or warnings detected across router and ledger services.
 
 **Router** ({router_error_count}E / {router_warn_count}W):
 • {emoji} {flow}: {description} — {count}x
-• ...
 
 **Ledger** ({ledger_error_count}E / {ledger_warn_count}W):
 • {emoji} {category}: {description} — {count}x
-• ...
 
 **Top Errors**:
 1. {message_summary} — {count}x ({service})
 2. ...
 
-**Assessment**: {brief interpretation — what these errors mean, whether they indicate a systemic issue or are transient}
-```
+**Assessment**:
+• {one-line root cause or pattern interpretation}
+• {whether this is systemic or transient}
+• {recommended action if any, or "No action needed"}
 
 Status values:
-- `🔴 Issues Found` — any critical errors
-- `⚠️ Warnings Only` — warnings but no critical errors
-- `✅ All Clear` — nothing found
-
-**Important**: The report text IS your final response. Do not wrap it in code blocks or add any preamble — output the report directly so it can be sent to Telegram as-is.
+- 🔴 Issues Found — any critical errors
+- ⚠️ Warnings Only — warnings but no critical errors
+- ✅ All Clear — nothing found

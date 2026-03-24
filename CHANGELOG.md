@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.3 — 2026-03-24
+
+**Changed**
+- Improved monitoring-check report formatting for Telegram — removed code blocks and backticks, added critical output rules, structured assessment section
+
 ## 2.8.2 — 2026-03-24
 
 **Changed**
