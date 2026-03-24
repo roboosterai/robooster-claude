@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.6 — 2026-03-25
+
+**Changed**
+- monitoring-check queries use direct curl with OPENSEARCH_URL/OPENSEARCH_PASSWORD env vars instead of opensearch-cli
+
 ## 2.8.5 — 2026-03-24
 
 **Fixed**

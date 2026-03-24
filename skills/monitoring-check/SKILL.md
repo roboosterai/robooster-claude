@@ -14,14 +14,18 @@ Query prod OpenSearch for ERROR and WARN logs, analyze patterns, produce a forma
 
 ## OpenSearch Reference
 
-### Critical Syntax Rule
+### Access
 
-**NEVER put query parameters inside `--path`. This causes "no handler found" errors.**
+Query OpenSearch via curl using environment variables `OPENSEARCH_URL` and `OPENSEARCH_PASSWORD`:
 
+```bash
+curl -sk -u "admin:${OPENSEARCH_PASSWORD}" -X POST \
+  "${OPENSEARCH_URL}/<index>/_search" \
+  -H "Content-Type: application/json" \
+  -d '<query_json>'
 ```
-Wrong: opensearch-cli curl get --path "index/_search?q=keyword&size=10"
-Right: opensearch-cli curl get --path "index/_search" --query-params "q=keyword&size=10" --pretty
-```
+
+Always use `-sk` (silent + insecure SSL for self-signed certs).
 
 ### Index Naming
 
@@ -67,20 +71,20 @@ Pattern: `logs-platro-<service>-1-<YYYY-MM-DD>`
 
 2. Use the Agent tool to spawn the **log-collector** subagent with this prompt:
 
-   Run these 4 opensearch-cli queries and return structured results.
+   Run these 4 curl queries against OpenSearch and return structured results.
    Time range: {from} to {to}. Index date: {date}.
 
    Query 1 — Router ERRORs:
-   opensearch-cli curl post --path "logs-platro-router-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"ERROR"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
+   curl -sk -u "admin:${OPENSEARCH_PASSWORD}" -X POST "${OPENSEARCH_URL}/logs-platro-router-1-{date}/_search" -H "Content-Type: application/json" -d '{"query":{"bool":{"must":[{"term":{"level":"ERROR"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}'
 
    Query 2 — Router WARNs:
-   opensearch-cli curl post --path "logs-platro-router-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"WARN"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
+   curl -sk -u "admin:${OPENSEARCH_PASSWORD}" -X POST "${OPENSEARCH_URL}/logs-platro-router-1-{date}/_search" -H "Content-Type: application/json" -d '{"query":{"bool":{"must":[{"term":{"level":"WARN"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}'
 
    Query 3 — Ledger Errors:
-   opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Error"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
+   curl -sk -u "admin:${OPENSEARCH_PASSWORD}" -X POST "${OPENSEARCH_URL}/logs-platro-ledger-1-{date}/_search" -H "Content-Type: application/json" -d '{"query":{"bool":{"must":[{"match":{"LogLevel":"Error"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}'
 
    Query 4 — Ledger Warnings:
-   opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Warning"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
+   curl -sk -u "admin:${OPENSEARCH_PASSWORD}" -X POST "${OPENSEARCH_URL}/logs-platro-ledger-1-{date}/_search" -H "Content-Type: application/json" -d '{"query":{"bool":{"must":[{"match":{"LogLevel":"Warning"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}'
 
    If an index is not found (404), try without the "-1" suffix (e.g., logs-platro-router-{date}).
    Return counts and grouped summaries per query.
