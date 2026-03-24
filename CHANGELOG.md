@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.8.4 — 2026-03-24
+
+**Changed**
+- monitoring-check delegates log collection to a haiku subagent for cost efficiency
+- monitoring-check time range now configurable from prompt instead of hardcoded 15 minutes
+- Added allowed-tools declaration to monitoring-check skill
+
 ## 2.8.3 — 2026-03-24
 
 **Changed**

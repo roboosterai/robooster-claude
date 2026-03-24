@@ -2,6 +2,7 @@
 name: monitoring-check
 description: Periodic platform health check — queries prod OpenSearch for ERROR and WARN logs across router and ledger services, analyzes patterns, classifies severity, and produces a formatted summary report. Use when checking platform health or for scheduled monitoring.
 model: sonnet
+allowed-tools: Agent, Bash
 user-invocable: true
 ---
 
@@ -53,40 +54,38 @@ Pattern: `logs-platro-<service>-1-<YYYY-MM-DD>`
 
 ## Workflow
 
-### Phase 1: Query
+### Phase 1: Collect Data
 
-**Goal**: Retrieve ERROR and WARN logs from the last 15 minutes.
+**Goal**: Retrieve ERROR and WARN logs using the log-collector subagent (runs on haiku for cost efficiency).
 
 **Actions**:
 
-1. Get current UTC time and calculate time range:
-   - `to` = now (UTC, ISO 8601 format: `YYYY-MM-DDTHH:MM:SSZ`)
-   - `from` = now minus 15 minutes
-   - `date` = today's date (`YYYY-MM-DD`) for index name
+1. Calculate the time range:
+   - `to` = current UTC time (ISO 8601: YYYY-MM-DDTHH:MM:SSZ)
+   - `from` = current UTC time minus the number of minutes specified in the prompt
+   - `date` = today's date (YYYY-MM-DD) for index names
 
-2. Run the following 4 queries via Bash. Replace `{date}`, `{from}`, `{to}` with calculated values.
+2. Use the Agent tool to spawn the **log-collector** subagent with this prompt:
 
-**Query 1 — Router ERRORs:**
-```bash
-opensearch-cli curl post --path "logs-platro-server-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"ERROR"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
-```
+   Run these 4 opensearch-cli queries and return structured results.
+   Time range: {from} to {to}. Index date: {date}.
 
-**Query 2 — Router WARNs:**
-```bash
-opensearch-cli curl post --path "logs-platro-server-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"WARN"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
-```
+   Query 1 — Router ERRORs:
+   opensearch-cli curl post --path "logs-platro-server-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"ERROR"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
 
-**Query 3 — Ledger Errors:**
-```bash
-opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Error"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
-```
+   Query 2 — Router WARNs:
+   opensearch-cli curl post --path "logs-platro-server-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"WARN"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
 
-**Query 4 — Ledger Warnings:**
-```bash
-opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Warning"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
-```
+   Query 3 — Ledger Errors:
+   opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Error"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
 
-3. Parse the JSON responses. Extract `hits.total.value` for counts and `hits.hits[]._source` for log entries.
+   Query 4 — Ledger Warnings:
+   opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Warning"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
+
+   If an index is not found (404), try without the "-1" suffix (e.g., logs-platro-server-{date}).
+   Return counts and grouped summaries per query.
+
+3. Wait for the subagent to return. Use its structured results for Phase 2.
 
 ### Phase 2: Analyze
 
