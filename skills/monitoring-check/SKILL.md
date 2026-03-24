@@ -1,6 +1,7 @@
 ---
 name: monitoring-check
 description: Periodic platform health check — queries prod OpenSearch for ERROR and WARN logs across router and ledger services, analyzes patterns, classifies severity, and produces a formatted summary report. Use when checking platform health or for scheduled monitoring.
+model: sonnet
 user-invocable: true
 ---
 

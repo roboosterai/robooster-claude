@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.2 — 2026-03-24
+
+**Changed**
+- Set monitoring-check skill to use Sonnet model
+
 ## 2.8.1 — 2026-03-24
 
 **Added**
