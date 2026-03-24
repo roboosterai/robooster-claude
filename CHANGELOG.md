@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.1 — 2026-03-24
+
+**Added**
+- monitoring-check skill — periodic platform health check via prod OpenSearch (ERROR/WARN log analysis with severity classification and formatted reports)
+
 ## 2.8.0 — 2026-03-17
 
 **Added**
