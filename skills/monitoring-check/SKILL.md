@@ -29,12 +29,12 @@ Pattern: `logs-platro-<service>-1-<YYYY-MM-DD>`
 
 | Service | Index Example |
 |---------|--------------|
-| Router | `logs-platro-server-1-2026-03-24` |
+| Router | `logs-platro-router-1-2026-03-24` |
 | Ledger | `logs-platro-ledger-1-2026-03-24` |
 
 ### Field Reference
 
-**Server index** (`logs-platro-server-*`):
+**Router index** (`logs-platro-router-*`):
 - `level` — keyword: `ERROR`, `WARN`, `INFO`
 - `flow` — keyword: `PaymentsCreate`, `PayoutsCreate`, `IncomingWebhookReceive`, `RefundsList`, etc.
 - `connector` — keyword: connector name
@@ -71,10 +71,10 @@ Pattern: `logs-platro-<service>-1-<YYYY-MM-DD>`
    Time range: {from} to {to}. Index date: {date}.
 
    Query 1 — Router ERRORs:
-   opensearch-cli curl post --path "logs-platro-server-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"ERROR"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
+   opensearch-cli curl post --path "logs-platro-router-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"ERROR"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
 
    Query 2 — Router WARNs:
-   opensearch-cli curl post --path "logs-platro-server-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"WARN"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
+   opensearch-cli curl post --path "logs-platro-router-1-{date}/_search" --data '{"query":{"bool":{"must":[{"term":{"level":"WARN"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["level","flow","connector","merchant_id","message","timestamp"]}' --pretty --profile prod
 
    Query 3 — Ledger Errors:
    opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Error"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
@@ -82,7 +82,7 @@ Pattern: `logs-platro-<service>-1-<YYYY-MM-DD>`
    Query 4 — Ledger Warnings:
    opensearch-cli curl post --path "logs-platro-ledger-1-{date}/_search" --data '{"query":{"bool":{"must":[{"match":{"LogLevel":"Warning"}},{"range":{"timestamp":{"gte":"{from}","lte":"{to}"}}}]}},"size":50,"sort":[{"timestamp":{"order":"desc"}}],"_source":["LogLevel","Category","Message","State.MerchantId","timestamp"]}' --pretty --profile prod
 
-   If an index is not found (404), try without the "-1" suffix (e.g., logs-platro-server-{date}).
+   If an index is not found (404), try without the "-1" suffix (e.g., logs-platro-router-{date}).
    Return counts and grouped summaries per query.
 
 3. Wait for the subagent to return. Use its structured results for Phase 2.

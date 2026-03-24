@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.5 — 2026-03-24
+
+**Fixed**
+- Corrected router log index from logs-platro-server to logs-platro-router in monitoring-check queries
+
 ## 2.8.4 — 2026-03-24
 
 **Changed**
