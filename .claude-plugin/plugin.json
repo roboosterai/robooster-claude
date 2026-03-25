@@ -1,6 +1,6 @@
 {
   "name": "robooster-claude",
-  "version": "2.8.10",
+  "version": "2.8.11",
   "description": "Shared Claude Code configuration for Robooster team",
   "author": {
     "name": "robooster"

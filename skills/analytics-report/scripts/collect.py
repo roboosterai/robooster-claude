@@ -164,34 +164,38 @@ def fmt_inr(paisa):
         return "₹0"
 
 
+def row(label, count, amount):
+    """Fixed-width row: label(16) count(5) amount(10)."""
+    return f"{label:<16}{count:>5}  {amount:>10}"
+
+
 def format_report(metrics):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     p = metrics["platform"]
 
     lines = [
         "PLATFORM",
-        f"  Payments {p['payments_count']:>5}  {fmt_inr(p['payments_amount']):>10}",
-        f"  Payouts  {p['payouts_count']:>5}  {fmt_inr(p['payouts_amount']):>10}",
+        row("  Payments", p["payments_count"], fmt_inr(p["payments_amount"])),
+        row("  Payouts", p["payouts_count"], fmt_inr(p["payouts_amount"])),
     ]
 
     for m_id, m in sorted(metrics["merchants"].items()):
-        lines += [
-            "",
-            m_id,
-            f"  Payments {m['payments_count']:>5}  {fmt_inr(m['payments_amount']):>10}",
-        ]
+        lines.append("")
+        lines.append(m_id)
+        lines.append(row("  Payments", m["payments_count"], fmt_inr(m["payments_amount"])))
         for c_id, c in sorted(m["connectors"].items()):
             if c["payments_count"] > 0:
-                lines.append(f"    {c_id:<10} {c['payments_count']:>4}  {fmt_inr(c['payments_amount']):>10}")
-        lines.append(f"  Payouts  {m['payouts_count']:>5}  {fmt_inr(m['payouts_amount']):>10}")
+                lines.append(row(f"    {c_id}", c["payments_count"], fmt_inr(c["payments_amount"])))
+        lines.append(row("  Payouts", m["payouts_count"], fmt_inr(m["payouts_amount"])))
         for c_id, c in sorted(m["connectors"].items()):
             if c["payouts_count"] > 0:
-                lines.append(f"    {c_id:<10} {c['payouts_count']:>4}  {fmt_inr(c['payouts_amount']):>10}")
+                lines.append(row(f"    {c_id}", c["payouts_count"], fmt_inr(c["payouts_amount"])))
 
     if metrics["connectors"]:
-        lines += ["", "PSP CONNECTORS"]
+        lines.append("")
+        lines.append("PSP CONNECTORS")
         for c_id, c in sorted(metrics["connectors"].items()):
-            lines.append(f"  {c_id:<10} {c['payments_count']:>4} pay  {c['payouts_count']:>4} pout")
+            lines.append(row(f"  {c_id}", c["payments_count"], fmt_inr(c["payments_amount"])))
 
     body = "\n".join(lines)
     title = f"**Analytics Report** — {today}"

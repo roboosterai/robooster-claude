@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.11 — 2026-03-25
+
+**Changed**
+- Extracted row() helper for consistent fixed-width column alignment in analytics-report
+
 ## 2.8.10 — 2026-03-25
 
 **Changed**
