@@ -164,42 +164,79 @@ def fmt_inr(paisa):
         return "₹0"
 
 
+def draw_table(headers, rows, aligns=None):
+    """Draw a box-drawing table.
+
+    aligns: list of '<' (left) or '>' (right) per column. Default: first left, rest right.
+    """
+    cols = len(headers)
+    if aligns is None:
+        aligns = ["<"] + [">"] * (cols - 1)
+
+    # Calculate column widths (max of header and all row values)
+    widths = [len(str(h)) for h in headers]
+    for row in rows:
+        for i, val in enumerate(row):
+            widths[i] = max(widths[i], len(str(val)))
+
+    def fmt_row(values):
+        cells = []
+        for i, val in enumerate(values):
+            s = str(val)
+            if aligns[i] == ">":
+                cells.append(s.rjust(widths[i]))
+            else:
+                cells.append(s.ljust(widths[i]))
+        return "│ " + " │ ".join(cells) + " │"
+
+    top = "┌─" + "─┬─".join("─" * w for w in widths) + "─┐"
+    sep = "├─" + "─┼─".join("─" * w for w in widths) + "─┤"
+    bot = "└─" + "─┴─".join("─" * w for w in widths) + "─┘"
+
+    lines = [top, fmt_row(headers), sep]
+    for row in rows:
+        lines.append(fmt_row(row))
+    lines.append(bot)
+    return "\n".join(lines)
+
+
 def format_report(metrics):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     p = metrics["platform"]
-    lines = [
-        f"**Analytics Report** — {today}",
-        "",
-        "**Platform Totals**",
-        f"• Payments: {p['payments_count']} txns — {fmt_inr(p['payments_amount'])}",
-        f"• Payouts: {p['payouts_count']} txns — {fmt_inr(p['payouts_amount'])}",
-    ]
 
-    if metrics["merchants"]:
-        lines += ["", "**Merchants**"]
-        for m_id, m in sorted(metrics["merchants"].items()):
-            lines += [
-                "",
-                f"**{m_id}**:",
-                f"  Payments: {m['payments_count']} txns — {fmt_inr(m['payments_amount'])}",
-            ]
-            for c_id, c in sorted(m["connectors"].items()):
-                if c["payments_count"] > 0:
-                    lines.append(f"    via {c_id}: {c['payments_count']} txns — {fmt_inr(c['payments_amount'])}")
-            lines.append(f"  Payouts: {m['payouts_count']} txns — {fmt_inr(m['payouts_amount'])}")
-            for c_id, c in sorted(m["connectors"].items()):
-                if c["payouts_count"] > 0:
-                    lines.append(f"    via {c_id}: {c['payouts_count']} txns — {fmt_inr(c['payouts_amount'])}")
+    # Platform totals table
+    platform = draw_table(
+        ["Platform", "Count", "Amount"],
+        [
+            ["Payments", p["payments_count"], fmt_inr(p["payments_amount"])],
+            ["Payouts", p["payouts_count"], fmt_inr(p["payouts_amount"])],
+        ],
+    )
 
-    if metrics["connectors"]:
-        lines += ["", "**PSP Connectors**"]
-        for c_id, c in sorted(metrics["connectors"].items()):
-            lines.append(
-                f"• {c_id}: {c['payments_count']} pay / {c['payouts_count']} pout "
-                f"— {fmt_inr(c['payments_amount'])} / {fmt_inr(c['payouts_amount'])}"
-            )
+    # Per-merchant tables
+    merchant_tables = []
+    for m_id, m in sorted(metrics["merchants"].items()):
+        rows = []
+        rows.append(["Payments", m["payments_count"], fmt_inr(m["payments_amount"])])
+        for c_id, c in sorted(m["connectors"].items()):
+            if c["payments_count"] > 0:
+                rows.append([f"  {c_id}", c["payments_count"], fmt_inr(c["payments_amount"])])
+        rows.append(["Payouts", m["payouts_count"], fmt_inr(m["payouts_amount"])])
+        for c_id, c in sorted(m["connectors"].items()):
+            if c["payouts_count"] > 0:
+                rows.append([f"  {c_id}", c["payouts_count"], fmt_inr(c["payouts_amount"])])
+        merchant_tables.append(draw_table([m_id, "Count", "Amount"], rows))
 
-    return "\n".join(lines)
+    # PSP connectors table
+    psp_rows = []
+    for c_id, c in sorted(metrics["connectors"].items()):
+        psp_rows.append([c_id, c["payments_count"], c["payouts_count"]])
+    psp = draw_table(["PSP", "Pay", "Pout"], psp_rows)
+
+    # Combine: title (markdown) + tables (pre block)
+    body = "\n\n".join([platform] + merchant_tables + [psp])
+    title = f"**Analytics Report** — {today}"
+    return f"{title}\n\n<pre>{body}</pre>"
 
 
 def main():

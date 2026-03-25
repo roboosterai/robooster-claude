@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.9 — 2026-03-25
+
+**Changed**
+- analytics-report output uses box-drawing tables instead of bullet lists for cleaner Telegram rendering
+
 ## 2.8.8 — 2026-03-25
 
 **Changed**
