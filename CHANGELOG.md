@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.8 — 2026-03-25
+
+**Changed**
+- analytics-report collector supports remote PostgreSQL via POSTGRES_HOST env var (docker exec fallback for local)
+
 ## 2.8.7 — 2026-03-25
 
 **Added**

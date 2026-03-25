@@ -7,6 +7,7 @@ hierarchical structure, and outputs JSON with:
 - metrics: structured data for AI analysis
 """
 
+import os
 import subprocess
 import json
 from datetime import datetime, timezone
@@ -36,12 +37,28 @@ ORDER BY type, merchant_id, connector;
 
 
 def run_query():
-    result = subprocess.run(
-        ["docker", "exec", "-i", "platro-pg-1", "psql",
-         "-U", "db_user", "-d", "hyperswitch_db",
-         "-t", "-A", "-F", "|", "-c", SQL],
-        capture_output=True, text=True, timeout=30
-    )
+    db_host = os.environ.get("POSTGRES_HOST")
+
+    if db_host:
+        # Docker / prod: psql via network
+        cmd = [
+            "psql", "-h", db_host,
+            "-p", os.environ.get("POSTGRES_PORT", "5432"),
+            "-U", os.environ.get("POSTGRES_USER", "db_user"),
+            "-d", "hyperswitch_db",
+            "-t", "-A", "-F", "|", "-c", SQL,
+        ]
+        env = {**os.environ, "PGPASSWORD": os.environ.get("POSTGRES_PASSWORD", "")}
+    else:
+        # Local terminal (bun run dev): docker exec
+        cmd = [
+            "docker", "exec", "-i", "platro-pg-1", "psql",
+            "-U", "db_user", "-d", "hyperswitch_db",
+            "-t", "-A", "-F", "|", "-c", SQL,
+        ]
+        env = None
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, env=env)
     if result.returncode != 0:
         raise RuntimeError(f"psql failed: {result.stderr.strip()}")
     return result.stdout.strip()
