@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.8.7 — 2026-03-25
+
+**Added**
+- analytics-report skill — daily payment/payout metrics by merchant and connector
+- Python collector script querying local PostgreSQL via docker exec
+
 ## 2.8.6 — 2026-03-25
 
 **Changed**
