@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.10 — 2026-03-25
+
+**Changed**
+- Replaced box-drawing tables with simple aligned text in analytics-report output
+
 ## 2.8.9 — 2026-03-25
 
 **Changed**
