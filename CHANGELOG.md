@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.12 — 2026-03-26
+
+**Added**
+- business-data skill for querying payment/payout metrics via SQL
+
 ## 2.8.11 — 2026-03-25
 
 **Changed**
