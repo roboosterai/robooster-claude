@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.8.13 — 2026-04-21
+
+**Fixed**
+- Analytics report SQL now excludes test-platform merchants (`platro_test_org`) from production metrics
+
 ## 2.8.12 — 2026-03-26
 
 **Added**

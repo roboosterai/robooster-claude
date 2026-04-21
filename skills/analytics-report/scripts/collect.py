@@ -12,12 +12,28 @@ import subprocess
 import json
 from datetime import datetime, timezone
 
-SQL = """
+# Platform codes excluded from production reports (test orgs).
+# Mirrors platro-agents/src/lib/scopes.ts — keep in sync.
+TEST_PLATFORM_CODES = ("platro_test_org",)
+
+_test_orgs_sql = ", ".join(f"'{c}'" for c in TEST_PLATFORM_CODES)
+
+
+def scope_by_merchant_id(alias=None):
+    col = f"{alias}.merchant_id" if alias else "merchant_id"
+    return (
+        f"{col} NOT IN "
+        f"(SELECT merchant_id FROM merchant_account WHERE organization_id IN ({_test_orgs_sql}))"
+    )
+
+
+SQL = f"""
 WITH pay AS (
   SELECT merchant_id, connector,
     count(*) as cnt, coalesce(sum(amount), 0) as amt
   FROM payment_attempt
   WHERE created_at >= current_date
+    AND {scope_by_merchant_id()}
   GROUP BY merchant_id, connector
 ),
 pout AS (
@@ -27,6 +43,7 @@ pout AS (
   JOIN payouts p ON pa.payout_id = p.payout_id
     AND pa.merchant_id = p.merchant_id
   WHERE pa.created_at >= current_date
+    AND {scope_by_merchant_id("pa")}
   GROUP BY pa.merchant_id, pa.connector
 )
 SELECT 'payment' as type, merchant_id, connector, cnt, amt FROM pay
