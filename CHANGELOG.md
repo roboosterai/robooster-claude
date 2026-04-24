@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.9.0 — 2026-04-24
+
+**Added**
+- clone-connector skill for cloning Hyperswitch connectors across repos
+- ledger-auth-testing skill for platform scoping and JWT auth security tests
+- portal-ui-testing skill for Platro portal UI test coverage
+- rr-status, rr-commit, rr-push, rr-ship skills for multi-repo git ops
+- rr-pr, rr-pr-merge, rr-merge skills for PR creation and merge workflows
+- rr-done, rr-branch-move skills for branch lifecycle management
+
 ## 2.8.13 — 2026-04-21
 
 **Fixed**
