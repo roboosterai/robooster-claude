@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.9.1 — 2026-04-24
+
+**Changed**
+- transaction-investigating skill updated for snake_case schema in platro_services_db and platro_observability log shapes (timing / request / response / webhook), with strict ID validation gate and merchant-window fallback for PSync flows
+
 ## 2.9.0 — 2026-04-24
 
 **Added**
