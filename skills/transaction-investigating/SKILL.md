@@ -123,78 +123,90 @@ Exact column names for SQL queries. Using wrong names causes silent failures.
 | `created_at` | timestamp | |
 | `modified_at` | timestamp | |
 
-### platro_services_db (PascalCase — MUST double-quote)
+### platro_services_db (snake_case — no quoting required)
 
-**`ledger_transactions`** — No `"Status"` column!
+All tables use `snake_case` column names. Do NOT double-quote identifiers. Enum values (e.g. `'Debit'`, `'PspAllocation'`) are PascalCase as strings, but column names are lowercase.
+
+Every table in this DB now has a `platform_id uuid` column (platform-scoping). Queries rarely need to filter on it, but selecting it is harmless.
+
+**`ledger_transactions`** — no `status` column
 
 | Column | Type |
 |--------|------|
-| `"Id"` | uuid PK |
-| `"Type"` | enum (PayIn, PayOut, Fee, Allocation, Wire, ...) |
-| `"SourceSystem"` | string |
-| `"SourceId"` | string (payment_id or payout_id) |
-| `"Description"` | string |
-| `"Metadata"` | jsonb |
-| `"PostedAt"` | timestamptz |
-| `"CreatedAt"` | timestamptz |
+| `id` | uuid PK |
+| `type` | varchar (Payment, Payout, Fee, Allocation, Wire, ...) |
+| `source_system` | varchar (e.g. `hyperswitch`) |
+| `source_id` | varchar (payment_id or payout_id) |
+| `description` | varchar |
+| `metadata` | jsonb |
+| `posted_at` | timestamptz |
+| `platform_id` | uuid |
+| `created_at` | timestamptz |
 
-Lookup by: `"Metadata"::text LIKE '%{entity_id}%'` OR `"SourceId" = '{entity_id}'`
+Lookup by: `source_id = '{entity_id}'` OR `metadata::text LIKE '%{entity_id}%'`
 
 **`ledger_entries`**
 
 | Column | Type |
 |--------|------|
-| `"Id"` | uuid PK |
-| `"TransactionId"` | uuid FK |
-| `"AccountId"` | uuid FK |
-| `"Type"` | enum (Debit, Credit) |
-| `"Amount"` | int8 |
-| `"BalanceAfter"` | int8 |
-| `"PostedAt"` | timestamptz |
-| `"CreatedAt"` | timestamptz |
-| `"SourceReference"` | jsonb |
-| `"SettlementDay"` | date |
+| `id` | uuid PK |
+| `transaction_id` | uuid FK → `ledger_transactions.id` |
+| `account_id` | uuid FK → `ledger_accounts.id` |
+| `type` | varchar (Debit, Credit) |
+| `amount` | bigint |
+| `balance_after` | bigint |
+| `posted_at` | timestamptz |
+| `platform_id` | uuid |
+| `created_at` | timestamptz |
+| `source_reference` | jsonb |
+| `settlement_day` | date |
 
-Join with `ledger_accounts` on `"AccountId"` = `la."Id"` to get `la."AccountName"`, `la."NormalBalance"`
+Join with `ledger_accounts` on `account_id = la.id` to get `la.account_name`, `la.normal_balance`.
 
-**`ledger_accounts`** — Display name is `"AccountName"`, NOT `"Name"`
-
-| Column | Type |
-|--------|------|
-| `"Id"` | uuid PK |
-| `"AccountCode"` | string (party:entity:type) |
-| `"AccountName"` | string |
-| `"PartyType"` | enum (Psp, Platform, Merchant) |
-| `"EntityId"` | string |
-| `"AccountType"` | enum (Pending, Available, Balance, FeePayable, FeeRevenue, OnHold, Adjustment) |
-| `"NormalBalance"` | enum (Debit, Credit) |
-| `"Currency"` | string |
-
-**`allocation_batches`** — Minimal columns; no Status, TotalAmount, or WirePayoutId
+**`ledger_accounts`** — display name is `account_name`
 
 | Column | Type |
 |--------|------|
-| `"Id"` | uuid PK |
-| `"Type"` | enum (PspAllocation, MerchantAllocation) |
-| `"EntityCode"` | string |
-| `"PaymentIds"` | jsonb array |
-| `"LedgerTransactionId"` | uuid FK |
-| `"CreatedAt"` | timestamptz |
+| `id` | uuid PK |
+| `account_code` | varchar (`party:entity:type`, e.g. `merchant:merch_001:pending`) |
+| `account_name` | varchar |
+| `party_type` | varchar (Psp, Platform, Merchant) |
+| `entity_id` | varchar |
+| `account_type` | varchar (Pending, Available, Balance, FeePayable, FeeRevenue, OnHold, Adjustment) |
+| `classification` | varchar |
+| `normal_balance` | varchar (Debit, Credit) |
+| `currency` | varchar(3) |
+| `is_active` | boolean |
+| `platform_id` | uuid |
+| `created_at` | timestamptz |
+
+**`allocation_batches`** — minimal columns; no status, total_amount, or wire_payout_id
+
+| Column | Type |
+|--------|------|
+| `id` | uuid PK |
+| `type` | varchar (PspAllocation, MerchantAllocation) |
+| `entity_code` | varchar |
+| `payment_ids` | jsonb array |
+| `platform_id` | uuid |
+| `created_at` | timestamptz |
+| `ledger_transaction_id` | uuid FK → `ledger_transactions.id` |
 
 **`payout_holds`**
 
 | Column | Type |
 |--------|------|
-| `"Id"` | uuid PK |
-| `"MerchantId"` | string |
-| `"Amount"` | int8 |
-| `"Currency"` | string |
-| `"PayoutId"` | string |
-| `"McaId"` | string |
-| `"Status"` | string (Held, Matched, Released, Expired) |
-| `"CreatedAt"` | timestamptz |
-| `"ExpiresAt"` | timestamptz |
-| `"MatchedAt"` | timestamptz |
+| `id` | uuid PK |
+| `merchant_id` | varchar |
+| `amount` | bigint |
+| `currency` | varchar |
+| `payout_id` | varchar |
+| `mca_id` | varchar |
+| `status` | varchar (Held, Matched, Released, Expired) |
+| `platform_id` | uuid |
+| `created_at` | timestamptz |
+| `expires_at` | timestamptz |
+| `matched_at` | timestamptz nullable |
 
 ---
 
@@ -216,7 +228,7 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
 
    Expected format: `<entity_id> --env <environment>`
 
-   - `entity_id` — positional (e.g. `pay_abc123`, `po_xyz456`)
+   - `entity_id` — positional (e.g. `pay_abc123`, `payout_xyz456`)
    - `--env` — environment: `local`, `dev`, `stage`, `prod` (default: `local`)
 
    If entity ID is missing, prompt with `AskUserQuestion`:
@@ -231,28 +243,31 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
 
    | Prefix | Entity Type | Primary Tables |
    |--------|-------------|----------------|
-   | `pay_` | payment | payment_intent, payment_attempt |
-   | `po_`  | payout | payouts, payout_attempt |
+   | `pay_`    | payment | payment_intent, payment_attempt |
+   | `payout_` | payout | payouts, payout_attempt |
 
    If prefix is unrecognized, ask with `AskUserQuestion`:
    > "What type of transaction is this?"
    Options: Payment, Payout
+
+   Note: Hyperswitch uses `payout_` (not `po_`) for payout IDs — e.g. `payout_HFOEX4RybAVrnxsAXSB3`.
 
 4. **Set connection variables per environment:**
 
    | Env | DB Method | DB Port | Log Method | Creds Source |
    |-----|-----------|---------|------------|--------------|
    | local | `docker exec -i platro-pg-1 psql -U db_user` | N/A | grep local log files | hardcoded `db_user`/`db_pass` |
-   | dev | `psql -h localhost -p 8442` | 8442 | `opensearch-cli --profile dev` | `platro/platro-base-deploy/dev/server/.env` |
-   | stage | `psql -h localhost -p 8452` | 8452 | `opensearch-cli --profile stage` | `platro/platro-base-deploy/stage/server/.env` |
-   | prod | `psql -h localhost -p 8462` | 8462 | `opensearch-cli --profile prod` | `platro/platro-base-deploy/prod/server/.env` |
+   | dev | `psql -h localhost -p 8442 -U db_user` | 8442 | `opensearch-cli --profile dev` | user: `db_user`; password: `vars.secret.yaml.postgres_password` |
+   | stage | `psql -h localhost -p 8452 -U db_user` | 8452 | `opensearch-cli --profile stage` | user: `db_user`; password: `vars.secret.yaml.postgres_password` |
+   | prod | `psql -h localhost -p 8462 -U db_user` | 8462 | `opensearch-cli --profile prod` | user: `db_user`; password: `vars.secret.yaml.postgres_password` |
 
    **For remote environments (dev/stage/prod):**
-   - Read DB credentials from env files:
+   - User is hardcoded `db_user` (same as local).
+   - Password lives in `platro/platro-base-deploy/{env}/server/vars.secret.yaml` under the key `postgres_password`. Extract with:
      ```bash
-     PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env.public | cut -d= -f2)
-     PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env.secret | cut -d= -f2)
+     PG_PASS=$(grep '^  postgres_password:' platro/platro-base-deploy/{env}/server/vars.secret.yaml | sed -E 's/.*"([^"]+)".*/\1/')
      ```
+   - If `psql` is not in your PATH, use `/opt/homebrew/opt/libpq/bin/psql` (Homebrew macOS).
 
 5. **Verify connectivity (remote envs only):**
 
@@ -268,7 +283,58 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
 
    Stop the skill if connectivity fails.
 
-6. **Confirm to user:**
+6. **Strict ID validation (gate — runs before any full log sweep):**
+
+   The supplied ID may not actually be a Hyperswitch payment_id / payout_id — users sometimes paste merchant-side reference strings that end up only in the `description` or `metadata` field of a different entity. Loose text-matching in Phase 2 would produce a false-positive timeline. Validate first with exact-match DB + structured log term queries:
+
+   ```sql
+   -- For pay_*
+   SELECT payment_id, merchant_id, status, created_at
+   FROM payment_intent WHERE payment_id = '{entity_id}';
+
+   -- For payout_*
+   SELECT payout_id, merchant_id, status, created_at
+   FROM payouts WHERE payout_id = '{entity_id}';
+   ```
+
+   Also run a strict structured log term query (today's index):
+   ```
+   term: payment_id = {entity_id}   (or payout_id for payout_*)
+   index: logs-platro-router-1-{today}
+   size: 1
+   ```
+
+   **If both return 0 rows**, the ID is not a real entity ID. Run fuzzy fallback to surface candidates:
+
+   ```sql
+   -- hyperswitch_db — search description/metadata of recent entities
+   SELECT payment_id, merchant_id, status, description, created_at
+   FROM payment_intent
+   WHERE description LIKE '%{entity_id}%'
+      OR metadata::text LIKE '%{entity_id}%'
+   ORDER BY created_at DESC LIMIT 5;
+
+   -- Equivalent for payouts
+   SELECT payout_id, merchant_id, status, created_at
+   FROM payouts
+   WHERE metadata::text LIKE '%{entity_id}%'
+   ORDER BY created_at DESC LIMIT 5;
+   ```
+
+   Also phrase-match in logs:
+   ```
+   match_phrase: message contains "{entity_id}"
+   index: logs-platro-router-1-{today}
+   size: 5, _source: [timestamp, payment_id, payout_id, merchant_id]
+   ```
+
+   Present candidates to the user via `AskUserQuestion`:
+   > "`{entity_id}` is not a recognized payment_id/payout_id. I found these candidates where it appears as a reference — which one do you want to investigate?"
+   Options: each candidate as `<real_id> (<status>, <merchant>, <created_at>)`; plus "None of these — cancel."
+
+   Only proceed to Phase 2 after the user confirms a concrete real ID. If the user cancels or no candidates are found, stop the skill with a clear "not found" report.
+
+7. **Confirm to user:**
 
    > Starting investigation
    > - Entity: `{entity_id}` ({entity_type})
@@ -276,7 +342,7 @@ Execute phases in order. Use `AskUserQuestion` for human gates. Run all Bash com
    > - Date: {date}
    > - Indices: `logs-platro-*-1-{date}`
 
-**Proceed when:** Entity ID, type, environment, and connectivity confirmed
+**Proceed when:** Entity ID validated (strict or user-confirmed after fuzzy fallback), type, environment, and connectivity confirmed.
 
 ---
 
@@ -294,16 +360,19 @@ Logs tell the full event story: creation, connector API calls, webhooks, errors,
 
 **Remote envs — OpenSearch (query all 4 indices in parallel):**
 
-**Router logs (event_logger, connector API, webhooks):**
+**Router logs (legacy event_logger — creation, outgoing webhooks, etc.):**
 
 ```bash
 opensearch-cli curl post \
   --path "logs-platro-router-1-{date}/_search" \
-  --data '{"query":{"bool":{"must":[{"match":{"message":"event_logger"}},{"bool":{"should":[{"match_phrase":{"{id_field}":"{entity_id}"}},{"match_phrase":{"event":"{entity_id}"}}],"minimum_should_match":1}}],"must_not":[{"terms":{"flow.keyword":["PaymentsList","PaymentsRetrieve","PayoutsList","PayoutsRetrieve"]}}]}},"size":50,"sort":[{"timestamp":{"order":"asc"}}]}' \
+  --data '{"query":{"bool":{"must":[{"match":{"message":"event_logger"}},{"bool":{"should":[{"match_phrase":{"{id_field}":"{entity_id}"}},{"match_phrase":{"event":"{entity_id}"}}],"minimum_should_match":1}}],"must_not":[{"terms":{"flow.keyword":["PaymentsList","PaymentsRetrieve","PayoutsList","PayoutsRetrieve"]}},{"prefix":{"full_name.keyword":"platro_observability::logging::"}}]}},"size":50,"sort":[{"timestamp":{"order":"asc"}}]}' \
   --pretty --profile {env}
 ```
 
 Where `{id_field}` is `payment_id` for payments or `payout_id` for payouts.
+
+**Why the `must_not: prefix full_name.keyword = "platro_observability::logging::"`:**
+The Platro observability crate (see Phase 2A-ter) emits logs where the whole structured payload is baked into `message` as a stringified JSON containing the substring `"message":"event_logger"` inside it. Without this filter, those opaque blobs get mixed into this query's results with no usable top-level fields — Phase 2A-ter handles them specifically. Excluding them here keeps the legacy event_logger timeline clean.
 
 **Consumer logs (sync workflows):**
 
@@ -431,6 +500,76 @@ grep -B2 -A2 "signature" platro/platro-hs-backend/logs/router.log | grep -B4 -A4
 
 **IMPORTANT:** When presenting signature/raw body data, print the RAW messages as-is without reformatting — the whole point is to see the exact payload content.
 
+#### 2A-ter: Platro observability logs (connector request/response/webhook/timing)
+
+**Gate:** Run this section ONLY if the entity's connector is in the instrumented set:
+- `indiapay`, `indiapay_h`, `indiapay_q`, `inpayu`
+
+The connector is on `payment_attempt.connector` (for payments) or `payout_attempt.connector` (for payouts). If the connector is unknown at this stage, you can still run Query 1 cheaply — it will naturally return nothing for uninstrumented connectors. If a non-instrumented connector is confirmed, skip this section and note in the report: "Platro observability not instrumented for connector X."
+
+The `platro_observability` crate emits two structurally different log shapes. See `.claude/rules/opensearch.md` → "Platro Observability Logs" for the full field reference.
+
+**Query 1 — Timing enumeration (structured, cheap).** Gives you every connector flow invoked for the entity, with wall-clock latency.
+
+```bash
+# Primary: by payment_id / payout_id (works for Authorize, PayoutCreate)
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"term":{"operation.keyword":"timing"}},{"term":{"{id_field}":"{entity_id}"}}]}},"size":20,"sort":[{"timestamp":{"order":"asc"}}],"_source":["timestamp","connector","flow","duration_ms","status","request_id","merchant_id","profile_name"]}' \
+  --pretty --profile {env}
+```
+
+If Query 1 returns fewer timing logs than expected (e.g. an Authorize but no PSync even though the payment reached `charged`), run the **merchant-window fallback** because of known obs-crate Bug E (PSync and some other flows put a Rust-debug string into the `payment_id` tracing field):
+
+```bash
+# Fallback: by merchant_id + timestamp window (±60s around the Authorize timing log)
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"term":{"operation.keyword":"timing"}},{"term":{"merchant_id":"{merchant_id}"}},{"range":{"timestamp":{"gte":"{t_minus_60s}","lte":"{t_plus_60s}"}}}]}},"size":40,"sort":[{"timestamp":{"order":"asc"}}],"_source":["timestamp","connector","flow","duration_ms","status","request_id","merchant_id","payment_id","payout_id"]}' \
+  --pretty --profile {env}
+```
+
+Trust `duration_ms` on timing logs only — it is NOT reliable on the response logs below (obs-crate Bug F).
+
+**Query 2 — Request / response bodies (stringified JSON in `message`).** Phrase-match by the real ID, filter by the two HTTP emitters.
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"terms":{"full_name.keyword":["platro_observability::logging::call_connector_service","platro_observability::logging::execute_connector_processing_step"]}},{"match_phrase":{"message":"\"{id_field}\":\"{entity_id}\""}}]}},"size":20,"sort":[{"timestamp":{"order":"asc"}}],"_source":["timestamp","full_name","message"]}' \
+  --pretty --profile {env}
+```
+
+For each hit, extract the structured payload by parsing the JSON after the `] ` separator in `message`. Example:
+```
+message = "[CALL_CONNECTOR_SERVICE - EVENT] {\"timestamp\":\"…\",\"operation\":\"request\",\"flow\":\"Authorize\",\"url\":\"…\",\"body\":{…}}"
+```
+Split once on `"] "` and `json.loads` the right-hand side (or use a shell `sed 's/^[^{]*//'`). Surface in the timeline:
+- `operation` (`request` / `response`)
+- `flow` (`Authorize`, `PSync`, `ErrorResponse`, etc.)
+- `method`, `url`
+- `status_code` (response only)
+- `body` (truncate to ~500 chars unless user asks for full)
+
+**Pairing request→response (important — obs-crate Bug D):** The `request_id` inside the JSON differs across `request`, `response`, and `timing` logs for the same PSP call (three different UUID generators). Do NOT pair by `request_id`. Pair instead by: same `{id_field}` + same `flow`, then group by timestamp order within a ±2s window of each timing log.
+
+**Query 3 — Incoming webhook payload (operation = webhook).** Webhook logs don't carry `payment_id` at top level (routing happens after), so scope by connector + timestamp window around nearby PSync/sync activity:
+
+```bash
+opensearch-cli curl post \
+  --path "logs-platro-router-1-{date}/_search" \
+  --data '{"query":{"bool":{"must":[{"term":{"full_name.keyword":"platro_observability::logging::incoming_webhooks_core"}},{"match_phrase":{"message":"\"connector\":\"{connector}\""}},{"range":{"timestamp":{"gte":"{t_minus_10s}","lte":"{t_plus_10s}"}}}]}},"size":5,"sort":[{"timestamp":{"order":"asc"}}],"_source":["timestamp","message"]}' \
+  --pretty --profile {env}
+```
+
+Parse the JSON tail and surface: `method`, `uri`, `headers` (highlight `x-signature` if present), `body`. If the body contains the entity's `m_order_id` / `connector_transaction_id`, confirm it matches. Webhook logs fire BEFORE signature verification, so a hit here proves the PSP delivered a payload regardless of whether validation passed.
+
+**Known observability-crate limitations** (worked around above; not fixed in this skill):
+- **Bug D**: `request_id` is not stable across request/response/timing for the same call. Workaround: pair by `{id_field}` + `flow` + timestamp adjacency.
+- **Bug E**: On PSync/PayoutSync/Capture/RefundSync, the `payment_id` top-level tracing field may contain `connector_transaction_id = "<uuid>"` instead of the real payment_id. Workaround: merchant+window fallback (Query 1 fallback form).
+- **Bug F**: `duration_ms` inside response-log JSON is always `0`. Workaround: use timing log's `duration_ms` only.
+- **Top-level `target`** is always `"platro_observability::logging"` (Rust module path); the actual connector name lives inside the stringified JSON — filter via `full_name.keyword`, not `target`.
+
 #### 2B: Interpret & follow up on logs
 
 Analyze what the logs reveal. This is the most important step — logs contain the event narrative.
@@ -494,7 +633,7 @@ SELECT dispute_id, payment_id, attempt_id, dispute_status, dispute_stage,
 FROM dispute WHERE payment_id = '{entity_id}' ORDER BY created_at ASC;
 ```
 
-**For payouts (`po_*`) — hyperswitch_db:**
+**For payouts (`payout_*`) — hyperswitch_db:**
 
 ```sql
 -- payouts — NOTE: no `connector` column here; connector is on payout_attempt
@@ -508,40 +647,40 @@ SELECT payout_attempt_id, payout_id, status, connector, connector_payout_id,
 FROM payout_attempt WHERE payout_id = '{entity_id}' ORDER BY created_at ASC;
 ```
 
-**Ledger data — platro_services_db:**
+**Ledger data — platro_services_db (snake_case, no quoting):**
 
 ```sql
--- Find ledger transactions by SourceId or Metadata
-SELECT "Id", "Type", "SourceSystem", "SourceId", "Description", "Metadata", "PostedAt", "CreatedAt"
+-- Find ledger transactions by source_id or metadata
+SELECT id, type, source_system, source_id, description, metadata, posted_at, created_at
 FROM ledger_transactions
-WHERE "SourceId" = '{entity_id}'
-   OR "Metadata"::text LIKE '%{entity_id}%'
-ORDER BY "CreatedAt" ASC;
+WHERE source_id = '{entity_id}'
+   OR metadata::text LIKE '%{entity_id}%'
+ORDER BY created_at ASC;
 
 -- Ledger entries for found transactions (run for each transaction ID)
-SELECT le."Id", le."TransactionId", la."AccountName", la."NormalBalance",
-       le."Type", le."Amount", le."BalanceAfter", le."CreatedAt"
+SELECT le.id, le.transaction_id, la.account_name, la.normal_balance,
+       le.type, le.amount, le.balance_after, le.created_at
 FROM ledger_entries le
-JOIN ledger_accounts la ON le."AccountId" = la."Id"
-WHERE le."TransactionId" = '{transaction_id}'
-ORDER BY le."CreatedAt" ASC;
+JOIN ledger_accounts la ON le.account_id = la.id
+WHERE le.transaction_id = '{transaction_id}'
+ORDER BY le.created_at ASC;
 ```
 
 **For payouts — payout holds:**
 
 ```sql
-SELECT "Id", "PayoutId", "MerchantId", "Amount", "Status", "MatchedAt", "CreatedAt"
+SELECT id, payout_id, merchant_id, amount, status, matched_at, created_at
 FROM payout_holds
-WHERE "PayoutId" = '{entity_id}';
+WHERE payout_id = '{entity_id}';
 ```
 
 **For payments — allocation batches:**
 
 ```sql
-SELECT "Id", "Type", "EntityCode", "PaymentIds", "LedgerTransactionId", "CreatedAt"
+SELECT id, type, entity_code, payment_ids, ledger_transaction_id, created_at
 FROM allocation_batches
-WHERE "PaymentIds"::text LIKE '%{entity_id}%'
-ORDER BY "CreatedAt" DESC
+WHERE payment_ids::text LIKE '%{entity_id}%'
+ORDER BY created_at DESC
 LIMIT 5;
 ```
 
@@ -556,14 +695,18 @@ docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c 'SELECT row_
 
 **Execution pattern (remote):**
 ```bash
+# Extract password once per session
+PG_PASS=$(grep '^  postgres_password:' platro/platro-base-deploy/{env}/server/vars.secret.yaml | sed -E 's/.*"([^"]+)".*/\1/')
+
 # hyperswitch_db
-PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
+PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U db_user -d hyperswitch_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
 
 # platro_services_db
-PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env | cut -d= -f2) && PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d platro_services_db -t -A -c 'SELECT row_to_json(t) FROM ({query}) t;'
+PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U db_user -d platro_services_db -t -A -c "SELECT row_to_json(t) FROM ({query}) t;"
 ```
+If `psql` isn't in PATH, use `/opt/homebrew/opt/libpq/bin/psql`.
 
-**CRITICAL:** PascalCase columns MUST be double-quoted. In shell commands for platro_services_db, use single quotes for the `-c` argument and escape inner single quotes with `'\''`.
+**Note:** `platro_services_db` uses `snake_case` column names — no quoting required. Double quotes would cause "column does not exist" errors. Double-quote identifiers only in `hyperswitch_db` if you ever need case-sensitive matches (rare; snake_case is the norm there too).
 
 #### 2D: Present Initial Findings Summary
 
@@ -673,12 +816,18 @@ After collecting all data (logs + any DB queries), present a concise summary:
    - Include key data inline (status, error codes, amounts)
    - Source labels: `Router-Log`, `Consumer-Log`, `Ledger-Log`, `Emulator-Log`, `HS-DB`, `Ledger-DB`
    - Include these event types when found:
-     - `IncomingWebhook` — PSP webhook received, include raw status from payload
+     - `IncomingWebhook` — PSP webhook received (legacy `IncomingWebhookReceive` flow), include raw status from payload
      - `SignatureVerified` — Signature check passed (no ERROR after signature log)
      - `SignatureFailed` — Signature check failed (ERROR after signature log)
      - `OutgoingWebhook` — Merchant webhook sent, include event_type from payload
-     - `ConnectorRequest` — Raw request sent to PSP connector
-     - `ConnectorResponse` — Raw response received from PSP connector
+     - `ConnectorRequest` — Raw request sent to PSP connector (legacy event_logger)
+     - `ConnectorResponse` — Raw response received from PSP connector (legacy event_logger)
+   - Phase 2A-ter (Platro observability) event types — prefer these when present, they carry more detail:
+     - `PSP-Request` — obs `operation:"request"`; include `flow`, `method`, `url`, summarize body
+     - `PSP-Response` — obs `operation:"response"`; include `flow`, `status_code`, summarize body
+     - `PSP-Error` — obs response with `flow:"ErrorResponse"`; highlight PSP error code/message from body
+     - `PSP-Timing` — obs `operation:"timing"`; use when more informative than the request/response pair (e.g. `duration_ms > 1000` or `status:"5xx"`)
+     - `RawWebhook` — obs `operation:"webhook"`; raw pre-verification payload with `method`, `uri`, signature header, body
 
 2. **Root cause analysis** (if transaction failed or is stuck):
 
@@ -819,22 +968,22 @@ After collecting all data (logs + any DB queries), present a concise summary:
 # hyperswitch_db
 docker exec -i platro-pg-1 psql -U db_user -d hyperswitch_db -c "{query}"
 
-# platro_services_db
-docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c '{query}'
+# platro_services_db (snake_case — no quoting of column identifiers needed)
+docker exec -i platro-pg-1 psql -U db_user -d platro_services_db -c "{query}"
 ```
 
 **Remote (psql via tunnel):**
 ```bash
-# Read credentials
-PG_USER=$(grep POSTGRES_USER platro/platro-base-deploy/{env}/server/.env | cut -d= -f2)
-PG_PASS=$(grep POSTGRES_PASSWORD platro/platro-base-deploy/{env}/server/.env | cut -d= -f2)
+# Read password (user is hardcoded `db_user`)
+PG_PASS=$(grep '^  postgres_password:' platro/platro-base-deploy/{env}/server/vars.secret.yaml | sed -E 's/.*"([^"]+)".*/\1/')
 
 # hyperswitch_db
-PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d hyperswitch_db -t -A -c "{query}"
+PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U db_user -d hyperswitch_db -t -A -c "{query}"
 
-# platro_services_db
-PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U $PG_USER -d platro_services_db -t -A -c '{query}'
+# platro_services_db (snake_case — use double quotes around the SQL string, not around column names)
+PGPASSWORD=$PG_PASS psql -h localhost -p {port} -U db_user -d platro_services_db -t -A -c "{query}"
 ```
+If `psql` isn't in PATH, use `/opt/homebrew/opt/libpq/bin/psql`.
 
 | Env | DB Port |
 |-----|---------|
@@ -931,6 +1080,12 @@ Ledger index fields (logs-platro-ledger-*):
 | 17 | Outgoing webhook event found | Merchant was notified | Present event.content; check if webhook delivery succeeded |
 | 18 | `error while fetching merchant webhook config` | Merchant webhook URL not configured | Note in report; this means merchant won't receive callbacks |
 | 19 | `Outgoing webhooks retry config not found` | Webhook retry not configured | Note as informational; single delivery attempt only |
+| 20 | Obs timing log for flow X, no paired request/response in 2A-ter | Timing wrapper fired but HttpRequestScope was bypassed (non-emulator path, or scope not set) | Note gap; check for ERROR logs ±1s around the timing log |
+| 21 | Obs timing `duration_ms > 5000` | Slow PSP call — may have caused upstream timeout | Check for a follow-up timing log, same flow + entity within 30s (retry) |
+| 22 | Multiple obs `request` events, same flow + same entity | Retry happened (router or connector layer) | Compare `status_code` and `body` across attempts; note which attempt finally succeeded |
+| 23 | Obs response with `flow:"ErrorResponse"` | Connector returned non-2xx, parsed as error | Read `body` for PSP error code + message; cross-check against DB `error_code` / `error_message` |
+| 24 | Obs `operation:"webhook"` present but no corresponding `IncomingWebhookReceive` event for this entity | Webhook arrived at router but didn't route to an entity | Check signature/deserialization; the obs webhook log fires pre-verification, so body is captured even when validation fails |
+| 25 | Obs timing `status:"5xx"` but paired HTTP `response` was 2xx | Post-HTTP parsing/handling failed (e.g. response-body decoding error) | Search ERROR logs in router index ±1s around the timing log |
 
 ---
 
@@ -939,7 +1094,7 @@ Ledger index fields (logs-platro-ledger-*):
 1. **Read-only** — Never modify any database, log, or file (except saving the report to KB)
 2. **No raw dumps** — Always summarize and interpret; show raw data only when specifically relevant
 3. **Date awareness** — Default to today's date for indices; adjust if entity's `created_at` is a different day
-4. **Shell quoting** — Use single quotes for `-c` args with PascalCase columns; escape inner singles with `'\''`
+4. **Column naming** — Both databases use `snake_case`. Do NOT double-quote identifiers — it causes silent "column does not exist" failures in `platro_services_db` (which you might otherwise mistake for PascalCase based on enum values).
 5. **Ignore Plan mode** — If invoked while in Plan mode, follow this workflow instead
 6. **One entity per session** — Investigate one transaction at a time; related entities are traced as part of the investigation
 7. **Max 3 follow-up rounds** — After 3 rounds of adaptive investigation, recommend proceeding to report
